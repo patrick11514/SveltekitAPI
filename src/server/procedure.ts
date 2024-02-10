@@ -100,15 +100,17 @@ export type Method = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
 export type ExtractParams<C extends Procedure<BaseParams> | TypedProcedure<BaseParams>> =
     C extends Procedure<infer P> ? P : C extends TypedProcedure<infer P> ? P : never;
 
-export type CallBackInput = Omit<BaseParams, 'schema' | 'method' | 'output'>;
-export type CallBackInputWithoutInput = Omit<CallBackInput, 'input'>;
+export type CallBackInput<P extends BaseParams> = Omit<P, 'schema' | 'method' | 'output'>;
+export type CallBackInputWithoutInput<P extends BaseParams> = Omit<CallBackInput<P>, 'input'>;
 
-export type CallBackFunction<O> = (data: CallBackInput) => Awaitable<O>;
-export type CallBackFunctionWithoutInput<O> = (data: CallBackInputWithoutInput) => Awaitable<O>;
+export type CallBackFunction<P extends BaseParams, O> = (data: CallBackInput<P>) => Awaitable<O>;
+export type CallBackFunctionWithoutInput<P extends BaseParams, O> = (
+    data: CallBackInputWithoutInput<P>,
+) => Awaitable<O>;
 
 export class Procedure<C extends BaseParams> {
     public method: Method;
-    public callback!: CallBackFunctionWithoutInput<C['output']>;
+    public callback!: CallBackFunctionWithoutInput<C, C['output']>;
     public middlewares: MiddleWareFunction<C, Any>[] = [];
 
     constructor(method: Method, appliedMiddlewares: MiddleWareFunction<C, Any>[]) {
@@ -127,7 +129,7 @@ export class Procedure<C extends BaseParams> {
         );
     }
 
-    public query<O>(callback: CallBackFunctionWithoutInput<O>) {
+    public query<O>(callback: CallBackFunctionWithoutInput<C, O>) {
         this.callback = callback;
         return this as unknown as Procedure<MergeoutputParams<C, O>>;
     }
@@ -136,7 +138,7 @@ export class Procedure<C extends BaseParams> {
 export class TypedProcedure<C extends BaseParams> {
     public inputSchema!: C['schema'];
     public method: Method;
-    public callback!: CallBackFunction<C['output']>;
+    public callback!: CallBackFunction<C, C['output']>;
     public middlewares: MiddleWareFunction<C, Any>[] = [];
 
     constructor(method: Method, appliedMiddlewares: MiddleWareFunction<C, Any>[], schema: C['schema']) {
@@ -145,7 +147,7 @@ export class TypedProcedure<C extends BaseParams> {
         this.inputSchema = schema;
     }
 
-    public query<O>(callback: CallBackFunction<O>) {
+    public query<O>(callback: CallBackFunction<C, O>) {
         this.callback = callback;
         return this as unknown as TypedProcedure<MergeoutputParams<C, O>>;
     }

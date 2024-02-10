@@ -169,14 +169,14 @@ export class APIServer<R extends Router<RouterObject>> {
             result = await Promise.resolve(
                 procedure.callback({
                     ctx,
-                } as CallBackInputWithoutInput),
+                } as CallBackInputWithoutInput<Any>),
             );
         } else {
             result = await Promise.resolve(
                 procedure.callback({
                     ctx,
                     input,
-                } as CallBackInput),
+                } as CallBackInput<Any>),
             );
         }
 
