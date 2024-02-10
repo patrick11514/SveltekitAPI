@@ -1,25 +1,132 @@
-import type { Router, RouterObject } from '../router.js'
-import type { HydrateData } from '../types.js'
+import type { Router, RouterObject } from '../router.js';
+import { Params, Procedure, TypedProcedure } from '../server/procedure.js';
+import type { Any, DistributeMethods, ExtractMethod, HydrateData } from '../types.js';
 
-/*export type DeepReplaceWith<O, R> = O extends object
+type ExtractType<T> =
+    T extends Procedure<Params<Any, Any, Any, Any>>
+        ? 'NOTHING'
+        : T extends TypedProcedure<Params<infer Type, Any, Any, Any>>
+          ? Type
+          : never;
+
+type ExtractReturnType<T> =
+    T extends Procedure<Params<Any, Any, Any, infer O>>
+        ? O
+        : T extends TypedProcedure<Params<Any, Any, Any, infer O>>
+          ? O
+          : never;
+
+type FetchFunction<T, O> = T extends 'NOTHING' ? () => Promise<O> : (data: T) => Promise<O>;
+
+type DistributeFunctions<T, M> = T extends Any
+    ? ExtractMethod<T> extends M
+        ? FetchFunction<ExtractType<T>, ExtractReturnType<T>>
+        : never
+    : never;
+
+type FinalObjectBuilder<O> = O extends object
     ? {
-          [K in keyof O]: O[K] extends Procedure<Any> ? R : O[K] extends Array<Any> ? ReplaceArrayWith<O[K], R[]> : DeepReplaceWith<O[K], R>
+          [K in keyof O]: O[K] extends Procedure<Params<Any, Any, infer M, infer Output>>
+              ? {
+                    [key in M]: {
+                        fetch: FetchFunction<'NOTHING', Output>;
+                    };
+                }
+              : O[K] extends TypedProcedure<Params<infer T, Any, infer M, infer Output>>
+                ? {
+                      [key in M]: {
+                          fetch: FetchFunction<T, Output>;
+                      };
+                  }
+                : O[K] extends Array<Any>
+                  ? {
+                        [Key in DistributeMethods<O[K][number]>]: {
+                            fetch: DistributeFunctions<O[K][number], Key>;
+                        };
+                    }
+                  : FinalObjectBuilder<O[K]>;
       }
-    : O
+    : O;
 
-type HydratedDataProps<R extends Router<RouterObject>, H extends HydrateData<R>> = {
-    [K in keyof R["endpoints"]]: K extends keyof H ? R["endpoints"][K] extends Procedure<Any> ? H[K] : : never
-}*/
+type APIClient<R extends Router<RouterObject>> = {
+    basePath: string;
+    hydrateFromServer: (data: HydrateData<R>) => void;
+} & FinalObjectBuilder<R['endpoints']>;
 
-//type HydratedData<R extends Router<RouterObject>, H extends HydrateData<R>> = H
-//hydrateFromServer: (data: HydrateData<R>) => void
+const fetchFunction = (path: string, method: string) => {
+    return async (data?: Any) => {
+        const request = await fetch(path, {
+            method,
+            body: data ? JSON.stringify(data) : undefined,
+        });
 
-export const createAPIClient = <R extends Router<RouterObject>>() => {
+        const text = await request.text();
+
+        try {
+            const json = JSON.parse(text);
+
+            return json;
+        } catch (_) {
+            return text;
+        }
+    };
+};
+
+export const createAPIClient = <R extends Router<RouterObject>>(basePath: string) => {
     return {
+        basePath,
         hydrateFromServer: function (data: HydrateData<R>) {
-            console.log(data)
+            const toDo: {
+                fullPath: string;
+                key: string;
+                parent: Any;
+                obj: Any;
+            }[] = Object.keys(data).map((key) => {
+                return {
+                    fullPath: '/' + key,
+                    key,
+                    parent: this,
+                    obj: data,
+                };
+            });
 
-            //type test = HydratedData<R, typeof data>
+            while (toDo.length != 0) {
+                const top = toDo.pop()!;
+                const data = top.obj[top.key];
+
+                if (typeof data === 'string') {
+                    top.parent[top.key] = {
+                        [data]: {
+                            fetch: fetchFunction(this.basePath + top.fullPath, data),
+                        },
+                    };
+                    continue;
+                }
+
+                if (Array.isArray(data)) {
+                    top.parent[top.key] = {};
+
+                    data.forEach((procedure) => {
+                        top.parent[top.key][procedure] = {
+                            fetch: fetchFunction(this.basePath + top.fullPath, procedure),
+                        };
+                    });
+                    continue;
+                }
+
+                top.parent[top.key] = {};
+
+                toDo.push(
+                    ...Object.keys(data).map((key) => {
+                        return {
+                            fullPath: top.fullPath + '/' + key,
+                            key,
+                            parent: top.parent[top.key],
+                            obj: data,
+                        };
+                    }),
+                );
+            }
         },
-    }
-}
+    } as APIClient<R>;
+};

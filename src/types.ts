@@ -24,9 +24,9 @@ export type ReplaceArrayItemsWith<T, R> = T extends Array<Any> ? R[] : T;
 export type ReplaceArrayWith<T, R> = T extends Array<Any> ? R : T;
 
 export type ExtractMethod<T> =
-    T extends Procedure<Params<Any, Any, infer M>>
+    T extends Procedure<Params<Any, Any, infer M, Any>>
         ? M
-        : T extends TypedProcedure<Params<Any, Any, infer M>>
+        : T extends TypedProcedure<Params<Any, Any, infer M, Any>>
           ? M
           : never;
 
@@ -34,9 +34,9 @@ export type DistributeMethods<T> = T extends Any ? ExtractMethod<T> : never;
 
 export type MethodsToRoot<O> = O extends object
     ? {
-          [K in keyof O]: O[K] extends Procedure<Params<Any, Any, infer M>>
+          [K in keyof O]: O[K] extends Procedure<Params<Any, Any, infer M, Any>>
               ? M
-              : O[K] extends TypedProcedure<Params<Any, Any, infer M>>
+              : O[K] extends TypedProcedure<Params<Any, Any, infer M, Any>>
                 ? M
                 : O[K] extends Array<Any>
                   ? DistributeMethods<O[K][number]>[]
