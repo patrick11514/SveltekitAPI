@@ -1,7 +1,7 @@
 {
-    "name": "@patrick115/sveltekitapihandler",
+    "name": "@patrick115/sveltekitapi",
     "version": "1.0.0",
-    "description": "SvelteKit API creating library similar to TRCP",
+    "description": "SvelteKit API creating library similar to TRPC",
     "main": "build/index.js",
     "scripts": {
         "test": "cd test && npm run dev",
