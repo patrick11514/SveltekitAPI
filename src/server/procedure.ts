@@ -100,7 +100,7 @@ export type Method = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
 export type ExtractParams<C extends Procedure<BaseParams> | TypedProcedure<BaseParams>> =
     C extends Procedure<infer P> ? P : C extends TypedProcedure<infer P> ? P : never;
 
-export type CallBackInput = Omit<BaseParams, 'schema'>;
+export type CallBackInput = Omit<BaseParams, 'schema' | 'method' | 'output'>;
 export type CallBackInputWithoutInput = Omit<CallBackInput, 'input'>;
 
 export type CallBackFunction<O> = (data: CallBackInput) => Awaitable<O>;
