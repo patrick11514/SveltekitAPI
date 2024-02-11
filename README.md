@@ -5,9 +5,11 @@ _This package is highly inspired by [TRPC](https://trpc.io)'s structure._
 
 ## Showcase
 
+![Showcase](./assets/showcase.gif)
+
 -   First step i creating new API with your context, which will be accesible in every procedure and middleware.
     Also you can export router and basic procedure.
-    src/lib/server/api.ts
+    **src/lib/server/api.ts**
 
     ```TS
 
@@ -71,6 +73,7 @@ _This package is highly inspired by [TRPC](https://trpc.io)'s structure._
 
 -   If we want to use our API in SvelteKit's endpoint we can do it like this:
     (export const for each method you want to use, in this case GET, POST, PUT, DELETE, PATCH)
+
     **src/routes/api/[...data]/+server.ts**
 
     ```TS
@@ -86,6 +89,7 @@ _This package is highly inspired by [TRPC](https://trpc.io)'s structure._
 
 -   Now syncing with frontend
 -   First we create an API client. As type we pass our router type and as parameter we pass rootPath for our API (same as in server).
+
     **src/lib/api.ts**
 
     ```TS
@@ -97,6 +101,7 @@ _This package is highly inspired by [TRPC](https://trpc.io)'s structure._
     ```
 
 -   Syncing with frontend. From load function we return object with our object returned from Server.hydrateToClient() function.
+
     **src/routes/+layout.server.ts**
 
     ```TS
@@ -111,6 +116,7 @@ _This package is highly inspired by [TRPC](https://trpc.io)'s structure._
     ```
 
 -   Now we need to pass this object to our client
+
     **src/routes/+layout.svelte**
 
     ```html
@@ -127,6 +133,7 @@ _This package is highly inspired by [TRPC](https://trpc.io)'s structure._
     ```
 
 -   Now we can call our API from our frontend
+
     **src/routes/+page.svelte**
 
     ```html
