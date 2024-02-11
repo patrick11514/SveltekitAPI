@@ -144,6 +144,7 @@ export class APIServer<R extends Router<RouterObject>> {
                                 input,
                             } as Params<unknown, Context, typeof method, Any>;
                         },
+                        ev,
                     }),
                 );
 
@@ -169,6 +170,7 @@ export class APIServer<R extends Router<RouterObject>> {
             result = await Promise.resolve(
                 procedure.callback({
                     ctx,
+                    ev,
                 } as CallBackInputWithoutInput<Any>),
             );
         } else {
@@ -176,6 +178,7 @@ export class APIServer<R extends Router<RouterObject>> {
                 procedure.callback({
                     ctx,
                     input,
+                    ev,
                 } as CallBackInput<Any>),
             );
         }

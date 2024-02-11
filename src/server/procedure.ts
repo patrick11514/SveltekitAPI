@@ -1,3 +1,4 @@
+import { RequestEvent } from '@sveltejs/kit';
 import type { z } from 'zod';
 import type { Any, Awaitable } from '../types.js';
 
@@ -7,6 +8,7 @@ export type BaseParams = {
     input: unknown;
     output: unknown;
     ctx: unknown;
+    ev: RequestEvent;
 };
 
 export type MergeParams<A extends BaseParams, B extends Method> = {
@@ -15,6 +17,7 @@ export type MergeParams<A extends BaseParams, B extends Method> = {
     input: A['input'];
     output: A['output'];
     ctx: A['ctx'];
+    ev: RequestEvent;
 };
 
 export type MergeoutputParams<A extends BaseParams, O> = {
@@ -23,6 +26,7 @@ export type MergeoutputParams<A extends BaseParams, O> = {
     input: A['input'];
     output: O;
     ctx: A['ctx'];
+    ev: RequestEvent;
 };
 
 export type Params<I, C, M extends Method, O> = {
@@ -31,11 +35,13 @@ export type Params<I, C, M extends Method, O> = {
     input: I;
     output: O;
     ctx: C;
+    ev: RequestEvent;
 };
 
 type MiddleWareFunction<Base extends BaseParams, After extends BaseParams> = (data: {
     ctx: Base['ctx'];
     input: Base['input'];
+    ev: RequestEvent;
     next: {
         (): Params<Base['input'], Base['ctx'], Base['method'], Base['output']>;
         <Context extends object>(newCtx: Context): Params<Base['input'], Context, Base['method'], Base['output']>;
