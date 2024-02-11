@@ -7,7 +7,7 @@ _This package is highly inspired by [TRPC](https://trpc.io)'s structure._
 
 ![Showcase](./assets/showcase.gif)
 
--   First step i creating new API with your context, which will be accesible in every procedure and middleware.
+-   First step is creating new API with your context, which will be accesible in every procedure and middleware.
     Also you can export router and basic procedure.
     **src/lib/server/api.ts**
 
@@ -37,7 +37,7 @@ _This package is highly inspired by [TRPC](https://trpc.io)'s structure._
     export type Context = AsyncReturnType<typeof context>
     ```
 
--   Now we create router and pass object to it with our procedures. In each procedure we can specify HTTP method (GET, POST, PUT, DELETE, PATCH). For methods other than GET we can specify input schema with .input(ZodSchema). Then we specify what to do with the request with .query(). Parameters for query function are: context and input (in case of method other than GET).
+-   Now we create router and pass object to it with our procedures. In each procedure we can specify HTTP method (GET, POST, PUT, DELETE, PATCH). For methods other than GET we can specify input schema with .input(ZodSchema). Then we specify what to do with the request with .query(). Parameters for query function are: context, input (in case of method other than GET), and ev, which is RequestEvent from SvelteKit in case you need to set cookies, or get user's ip or access the raw request.
 
     **src/lib/server/routes.ts**
 
@@ -142,7 +142,7 @@ _This package is highly inspired by [TRPC](https://trpc.io)'s structure._
         import { onMount } from 'svelte';
 
         onMount(async () => {
-            const res = await API.example.GET.fetch();
+            const res = await API.example.fetch();
             console.log(res);
         });
     </script>
@@ -161,4 +161,127 @@ pnpm install @patrick115/sveltekitapi
 
 #yarn
 yarn add @patrick115/sveltekitapi
+```
+
+## Usage
+
+### Context
+
+Context is a function that gets called on every request and returns object with data that will be accesible in every procedure and middleware. It gets passed SvelteKit's RequestEvent.
+
+Example of passing user's IP and session cookie to every procedure and middleware.
+
+```TS
+import type { AsyncReturnType, CreateContext } from '@patrick115/sveltekitapi'
+
+export const context = (async (ev) => {
+    const ip = ev.getClientAddress()
+    const cookie = ev.cookies.get(session)
+    return {
+        cookie,
+        ip
+    }
+}) satisfies CreateContext
+
+export type Context = AsyncReturnType<typeof context>
+```
+
+### Middleware
+
+Middleware is a function that gets called before every request on procedure, that uses that middleware. It gets passed context, input (with unknown type, because it can be used on multiple endpoints with multiple methods. In case of GET method, input contains undefined), SvelteKit's RequestEvent and next function, which is used to call next middleware or procedure. You need to call this function at the end of your middleware and return its result. You can pass new context as next function's parameter.
+
+Example of middleware that checks if user is logged in and if not, it returns error.
+
+```TS
+import { MiddleWareError } from '@patrick115/sveltekitapi'
+
+export const procedure = api.procedure
+
+export const securedProcedure = procedure.use(async ({ctx, next}) => {
+    if (!ctx.cookie) {
+        throw new MiddleWareError({
+            status: 401,
+            message: 'You need to be logged in to access this endpoint.'
+        })
+    }
+
+    const data = jwt.getCookie<User>(ctx.cookie)
+
+    if (!data) {
+        throw new MiddleWareError({
+            status: 401,
+            message: 'You need to be logged in to access this endpoint.'
+        })
+    }
+
+    return next({
+        ...ctx, //note, that context will be overwritten with new context, so if you want to pass some data from old context, you need to pass it here
+        user: data
+    })
+})
+```
+
+### Procedure
+
+In router we can define procedures, each procedure can have each HTTP method (GET, POST, PUT, DELETE, PATCH). For methods other than GET we can specify input schema with .input(ZodSchema). Then we specify what to do with the request with .query(). Parameters for query function are: context, input (in case of method other than GET), and ev, which is RequestEvent from SvelteKit in case you need to set cookies, or get user's ip or access the raw request.
+
+Example of procedure that returns Hello World.
+
+```TS
+
+import { procedure, router } from './api'
+
+export const r = router({
+    example: procedure.GET.query(() => {
+        return `Hello world` as const
+    })
+})
+
+export type AppRouter = typeof r
+```
+
+Calling this procedure from frontend.
+
+```TS
+const data = await API.example.fetch()
+console.log(data) //Hello world
+//           ^? data: "Hello world"
+```
+
+Multiple HTTP methods on one endpoint.
+
+```TS
+import { z } from 'zod'
+import { procedure, router } from './api'
+
+export const r = router({
+    example: [
+        procedure.GET.query(() => {
+            return `Hello world` as const
+        }),
+        procedure.POST.input(
+            z.object({
+                username: z.string()
+            })
+        ).query(({ input }) => {
+            return `Hello ${input.username}` as const
+        })
+    ]
+})
+
+export type AppRouter = typeof r
+```
+
+Calling this procedure from frontend.
+
+```TS
+const data = await API.example.GET.fetch() //here we can see, that we need to select which method we want to call
+console.log(data)
+//           ^? data: "Hello world"
+
+const data2 = await API.example.POST.fetch({
+    username: 'Patrik'
+})
+console.log(data2)
+//           ^? data: "Hello ${string}"
 ```
