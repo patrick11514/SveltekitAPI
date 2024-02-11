@@ -3,11 +3,13 @@
     "version": "1.0.0",
     "description": "Library for creating API endpoints in SvelteKit",
     "main": "build/index.js",
+    "types": "build/index.d.ts",
     "scripts": {
         "dev": "tsc -w",
         "build": "mkdir -p build && tsc",
         "clear": "rm -rf build",
-        "format": "prettier --write ."
+        "format": "prettier --write .",
+        "publ": "npm publish --access public"
     },
     "keywords": [],
     "author": "Patrik Mintěl",

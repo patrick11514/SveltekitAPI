@@ -1,0 +1,10 @@
+#dotfiles
+.prettierrc
+.eslintignore
+.eslintrc.cjs
+.vscode
+
+#other files
+src
+tsconfig.json
+pnpm-lock.yaml
