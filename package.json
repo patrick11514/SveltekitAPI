@@ -1,13 +1,11 @@
 {
     "name": "@patrick115/sveltekitapi",
     "version": "1.0.0",
-    "description": "SvelteKit API creating library similar to TRPC",
+    "description": "Library for creating API endpoints in SvelteKit",
     "main": "build/index.js",
     "scripts": {
-        "test": "cd test && npm run dev",
         "dev": "tsc -w",
         "build": "mkdir -p build && tsc",
-        "start": "node ./build/index.js",
         "clear": "rm -rf build",
         "format": "prettier --write ."
     },
