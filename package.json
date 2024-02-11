@@ -1,6 +1,6 @@
 {
     "name": "@patrick115/sveltekitapi",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "description": "Library for creating API endpoints in SvelteKit",
     "main": "build/index.js",
     "types": "build/index.d.ts",
