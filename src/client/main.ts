@@ -26,17 +26,13 @@ type DistributeFunctions<T, M> = T extends Any
 
 type FinalObjectBuilder<O> = O extends object
     ? {
-          [K in keyof O]: O[K] extends Procedure<Params<Any, Any, infer M, infer Output>>
+          [K in keyof O]: O[K] extends Procedure<Params<Any, Any, Any, infer Output>>
               ? {
-                    [key in M]: {
-                        fetch: FetchFunction<'NOTHING', Output>;
-                    };
+                    fetch: FetchFunction<'NOTHING', Output>;
                 }
-              : O[K] extends TypedProcedure<Params<infer T, Any, infer M, infer Output>>
+              : O[K] extends TypedProcedure<Params<infer T, Any, Any, infer Output>>
                 ? {
-                      [key in M]: {
-                          fetch: FetchFunction<T, Output>;
-                      };
+                      fetch: FetchFunction<T, Output>;
                   }
                 : O[K] extends Array<Any>
                   ? {
@@ -96,10 +92,9 @@ export const createAPIClient = <R extends Router<RouterObject>>(basePath: string
 
                 if (typeof data === 'string') {
                     top.parent[top.key] = {
-                        [data]: {
-                            fetch: fetchFunction(this.basePath + top.fullPath, data),
-                        },
+                        fetch: fetchFunction(this.basePath + top.fullPath, data),
                     };
+
                     continue;
                 }
 
