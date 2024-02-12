@@ -1,6 +1,6 @@
 import { RequestEvent } from '@sveltejs/kit';
 import type { z } from 'zod';
-import type { Any, Awaitable } from '../types.js';
+import type { Any, Awaitable, ErrorApiResponse, IsAny } from '../types.js';
 
 export type BaseParams = {
     method: Method;
@@ -20,11 +20,11 @@ export type MergeParams<A extends BaseParams, B extends Method> = {
     ev: RequestEvent;
 };
 
-export type MergeoutputParams<A extends BaseParams, O> = {
+export type MergeOutputParams<A extends BaseParams, O> = {
     method: A['method'];
     schema: A['schema'];
     input: A['input'];
-    output: O;
+    output: IsAny<A['output']> extends true ? O : O | A['output'];
     ctx: A['ctx'];
     ev: RequestEvent;
 };
@@ -43,8 +43,8 @@ type MiddleWareFunction<Base extends BaseParams, After extends BaseParams> = (da
     input: Base['input'];
     ev: RequestEvent;
     next: {
-        (): Params<Base['input'], Base['ctx'], Base['method'], Base['output']>;
-        <Context extends object>(newCtx: Context): Params<Base['input'], Context, Base['method'], Base['output']>;
+        (): Params<Base['input'], Base['ctx'], Base['method'], ErrorApiResponse>;
+        <Context extends object>(newCtx: Context): Params<Base['input'], Context, Base['method'], ErrorApiResponse>;
     };
 }) => Promise<After>;
 
@@ -137,7 +137,7 @@ export class Procedure<C extends BaseParams> {
 
     public query<O>(callback: CallBackFunctionWithoutInput<C, O>) {
         this.callback = callback;
-        return this as unknown as Procedure<MergeoutputParams<C, O>>;
+        return this as unknown as Procedure<MergeOutputParams<C, O>>;
     }
 }
 
@@ -155,6 +155,6 @@ export class TypedProcedure<C extends BaseParams> {
 
     public query<O>(callback: CallBackFunction<C, O>) {
         this.callback = callback;
-        return this as unknown as TypedProcedure<MergeoutputParams<C, O>>;
+        return this as unknown as TypedProcedure<MergeOutputParams<C, O>>;
     }
 }

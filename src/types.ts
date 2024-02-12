@@ -46,3 +46,6 @@ export type MethodsToRoot<O> = O extends object
 
 export type HydrateDataBuilder = { [key: string]: HydrateDataBuilder | Method | Method[] };
 export type HydrateData<R extends Router<Any>> = MethodsToRoot<R['endpoints']>;
+
+type IfAny<T, Y, N> = 0 extends 1 & T ? Y : N;
+export type IsAny<T> = IfAny<T, true, false>;
