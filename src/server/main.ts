@@ -13,6 +13,13 @@ import {
     type Params,
 } from './procedure.js';
 
+export const FormDataInput = z.custom<FormData>((data) => {
+    if (data instanceof FormData) {
+        return true;
+    }
+    return false;
+});
+
 export type ContextMethod<T> = (ev: RequestEvent) => T;
 
 export class APICreate<C> {
@@ -89,22 +96,26 @@ export class APIServer<R extends Router<RouterObject>> {
             } satisfies ErrorApiResponse);
         }
 
-        let input: ExtractParams<typeof procedure> | undefined = undefined;
+        let input: ExtractParams<typeof procedure>['input'] | undefined = undefined;
 
         if (procedure instanceof TypedProcedure) {
             try {
-                const jsonData = await request.json();
-                const parsed = procedure.inputSchema.safeParse(jsonData);
+                if (procedure.inputSchema == FormDataInput) {
+                    input = await request.formData();
+                } else {
+                    const jsonData = await request.json();
+                    const parsed = procedure.inputSchema.safeParse(jsonData);
 
-                if (!parsed.success) {
-                    return json({
-                        status: false,
-                        code: 400,
-                        message: 'Invalid input',
-                    } satisfies ErrorApiResponse);
+                    if (!parsed.success) {
+                        return json({
+                            status: false,
+                            code: 400,
+                            message: 'Invalid input',
+                        } satisfies ErrorApiResponse);
+                    }
+
+                    input = jsonData;
                 }
-
-                input = jsonData;
             } catch (_) {
                 return json({
                     status: false,

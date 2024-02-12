@@ -225,6 +225,8 @@ export const securedProcedure = procedure.use(async ({ctx, next}) => {
 
 In router we can define procedures, each procedure can have each HTTP method (GET, POST, PUT, DELETE, PATCH). For methods other than GET we can specify input schema with .input(ZodSchema). Then we specify what to do with the request with .query(). Parameters for query function are: context, input (in case of method other than GET), and ev, which is RequestEvent from SvelteKit in case you need to set cookies, or get user's ip or access the raw request.
 
+Note: if some procedure implements some middleware, return type will be ErrorApiResponse | your returned type, since you can throw error from middleware.
+
 Example of procedure that returns Hello World.
 
 ```TS
@@ -246,6 +248,7 @@ Calling this procedure from frontend.
 const data = await API.example.fetch()
 console.log(data) //Hello world
 //           ^? data: "Hello world"
+//Note, if this procedure would implement some middleware, return type would be ErrorApiResponse | "Hello world"
 ```
 
 Multiple HTTP methods on one endpoint.
@@ -283,5 +286,33 @@ const data2 = await API.example.POST.fetch({
     username: 'Patrik'
 })
 console.log(data2)
+//           ^? data: "Hello ${string}"
+```
+
+Procedure with FormData as input
+
+```TS
+import { FormDataInput } from '@patrick115/sveltekitapi'
+import { procedure, router } from './api'
+
+export const r = router({
+    example: procedure.POST.input(FormDataInput).query(({ input }) => {
+        const name = input.get('name')
+        return `Hello ${name ?? 'World'}` as const
+    })
+})
+
+export type AppRouter = typeof r
+
+```
+
+Calling this procedure from frontend.
+
+```TS
+const formData = new FormData()
+formData.append("name", "Patrik)
+
+const data = await API.example.fetch(formData)
+console.log(data) //Hello Patrik
 //           ^? data: "Hello ${string}"
 ```
