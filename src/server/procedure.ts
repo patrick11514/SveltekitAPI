@@ -94,9 +94,9 @@ export class BaseProcedure<C extends BaseParams> {
     }
 
     get PATCH() {
-        return new Procedure<MergeParams<C, 'POST'>>(
+        return new Procedure<MergeParams<C, 'PATCH'>>(
             'POST',
-            this.middlewares as MiddleWareFunction<MergeParams<C, 'POST'>, Any>[],
+            this.middlewares as MiddleWareFunction<MergeParams<C, 'PATCH'>, Any>[],
         );
     }
 }
