@@ -27,18 +27,12 @@ type DistributeFunctions<T, M> = T extends Any
 type FinalObjectBuilder<O> = O extends object
     ? {
           [K in keyof O]: O[K] extends Procedure<Params<Any, Any, Any, infer Output>>
-              ? {
-                    fetch: FetchFunction<'NOTHING', Output>;
-                }
+              ? FetchFunction<'NOTHING', Output>
               : O[K] extends TypedProcedure<Params<infer T, Any, Any, infer Output>>
-                ? {
-                      fetch: FetchFunction<T, Output>;
-                  }
+                ? FetchFunction<T, Output>
                 : O[K] extends Array<Any>
                   ? {
-                        [Key in DistributeMethods<O[K][number]>]: {
-                            fetch: DistributeFunctions<O[K][number], Key>;
-                        };
+                        [Key in DistributeMethods<O[K][number]>]: DistributeFunctions<O[K][number], Key>;
                     }
                   : FinalObjectBuilder<O[K]>;
       }
@@ -97,9 +91,7 @@ export const createAPIClient = <R extends Router<RouterObject>>(basePath: string
                 const data = top.obj[top.key];
 
                 if (typeof data === 'string') {
-                    top.parent[top.key] = {
-                        fetch: fetchFunction(this.basePath + top.fullPath, data),
-                    };
+                    top.parent[top.key] = fetchFunction(this.basePath + top.fullPath, data);
 
                     continue;
                 }
@@ -108,9 +100,7 @@ export const createAPIClient = <R extends Router<RouterObject>>(basePath: string
                     top.parent[top.key] = {};
 
                     data.forEach((procedure) => {
-                        top.parent[top.key][procedure] = {
-                            fetch: fetchFunction(this.basePath + top.fullPath, procedure),
-                        };
+                        top.parent[top.key][procedure] = fetchFunction(this.basePath + top.fullPath, procedure);
                     });
                     continue;
                 }
