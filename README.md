@@ -1,6 +1,7 @@
 # Sveltekit API
 
-Package for creating [SvelteKit](https://kit.svelte.dev/) API endpoints.
+Package for creating [SvelteKit](https://kit.svelte.dev/) API endpoints with typesafe routes and client.
+
 _This package is highly inspired by [TRPC](https://trpc.io)'s structure._
 
 ## Showcase
@@ -9,6 +10,7 @@ _This package is highly inspired by [TRPC](https://trpc.io)'s structure._
 
 -   First step is creating new API with your context, which will be accesible in every procedure and middleware.
     Also you can export router and basic procedure.
+
     **src/lib/server/api.ts**
 
     ```TS
@@ -142,7 +144,7 @@ _This package is highly inspired by [TRPC](https://trpc.io)'s structure._
         import { onMount } from 'svelte';
 
         onMount(async () => {
-            const res = await API.example.fetch();
+            const res = await API.example();
             console.log(res);
         });
     </script>
@@ -245,7 +247,7 @@ export type AppRouter = typeof r
 Calling this procedure from frontend.
 
 ```TS
-const data = await API.example.fetch()
+const data = await API.example()
 console.log(data) //Hello world
 //           ^? data: "Hello world"
 //Note, if this procedure would implement some middleware, return type would be ErrorApiResponse | "Hello world"
@@ -278,11 +280,11 @@ export type AppRouter = typeof r
 Calling this procedure from frontend.
 
 ```TS
-const data = await API.example.GET.fetch() //here we can see, that we need to select which method we want to call
+const data = await API.example.GET() //here we can see, that we need to select which method we want to call
 console.log(data)
 //           ^? data: "Hello world"
 
-const data2 = await API.example.POST.fetch({
+const data2 = await API.example.POST({
     username: 'Patrik'
 })
 console.log(data2)
@@ -312,7 +314,7 @@ Calling this procedure from frontend.
 const formData = new FormData()
 formData.append("name", "Patrik)
 
-const data = await API.example.fetch(formData)
+const data = await API.example(formData)
 console.log(data) //Hello Patrik
 //           ^? data: "Hello ${string}"
 ```
