@@ -2,6 +2,9 @@ import { RequestEvent } from '@sveltejs/kit';
 import type { z } from 'zod';
 import type { Any, Awaitable, ErrorApiResponse, IsAny } from '../types.js';
 
+/**
+ * @internal
+ */
 export type BaseParams = {
     method: Method;
     schema: z.ZodType<unknown>;
@@ -11,6 +14,9 @@ export type BaseParams = {
     ev: RequestEvent;
 };
 
+/**
+ * @internal
+ */
 export type MergeParams<A extends BaseParams, B extends Method> = {
     method: B;
     schema: A['schema'];
@@ -20,6 +26,9 @@ export type MergeParams<A extends BaseParams, B extends Method> = {
     ev: RequestEvent;
 };
 
+/**
+ * @internal
+ */
 export type MergeOutputParams<A extends BaseParams, O> = {
     method: A['method'];
     schema: A['schema'];
@@ -29,6 +38,9 @@ export type MergeOutputParams<A extends BaseParams, O> = {
     ev: RequestEvent;
 };
 
+/**
+ * @internal
+ */
 export type Params<I, C, M extends Method, O> = {
     method: M;
     schema: z.ZodType<I>;
@@ -101,15 +113,33 @@ export class BaseProcedure<C extends BaseParams> {
     }
 }
 
+/**
+ * @internal
+ */
 export type Method = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
 
+/**
+ * @internal
+ */
 export type ExtractParams<C extends Procedure<BaseParams> | TypedProcedure<BaseParams>> =
     C extends Procedure<infer P> ? P : C extends TypedProcedure<infer P> ? P : never;
 
+/**
+ * @internal
+ */
 export type CallBackInput<P extends BaseParams> = Omit<P, 'schema' | 'method' | 'output'>;
+/**
+ * @internal
+ */
 export type CallBackInputWithoutInput<P extends BaseParams> = Omit<CallBackInput<P>, 'input'>;
 
+/**
+ * @internal
+ */
 export type CallBackFunction<P extends BaseParams, O> = (data: CallBackInput<P>) => Awaitable<O>;
+/**
+ * @internal
+ */
 export type CallBackFunctionWithoutInput<P extends BaseParams, O> = (
     data: CallBackInputWithoutInput<P>,
 ) => Awaitable<O>;

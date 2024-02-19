@@ -1,6 +1,9 @@
 import { Procedure, TypedProcedure, type BaseParams, type Method, type Params } from './server/procedure.js';
 import type { Any, Arrayable } from './types.js';
 
+/**
+ * @internal
+ */
 export type RouterObject = {
     [key: string]:
         | RouterObject

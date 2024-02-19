@@ -1,7 +1,17 @@
 import { json, type RequestEvent } from '@sveltejs/kit';
 import { z } from 'zod';
 import { Router, type RouterObject } from '../router.js';
-import type { Any, CreateContext, ErrorApiResponse, HydrateData, HydrateDataBuilder } from '../types.js';
+import type {
+    Any,
+    CreateContext,
+    DistributeMethods,
+    ErrorApiResponse,
+    ExtractMethod,
+    ExtractReturnType,
+    ExtractType,
+    HydrateData,
+    HydrateDataBuilder,
+} from '../types.js';
 import {
     BaseProcedure,
     Procedure,
@@ -20,6 +30,9 @@ export const FormDataInput = z.custom<FormData>((data) => {
     return false;
 });
 
+/**
+ * @internal
+ */
 export type ContextMethod<T> = (ev: RequestEvent) => T;
 
 export class APICreate<C> {
@@ -32,10 +45,33 @@ export class APICreate<C> {
     }
 }
 
+type FetchFunction<T, O> = T extends 'NOTHING' ? () => Promise<O> : (data: T) => Promise<O>;
+
+type DistributeFunctions<T, M> = T extends Any
+    ? ExtractMethod<T> extends M
+        ? FetchFunction<ExtractType<T>, ExtractReturnType<T>>
+        : never
+    : never;
+
+type FinalObjectBuilder<O> = O extends object
+    ? {
+          [K in keyof O]: O[K] extends Procedure<Params<Any, Any, Any, infer Output>>
+              ? FetchFunction<'NOTHING', Output>
+              : O[K] extends TypedProcedure<Params<infer T, Any, Any, infer Output>>
+                ? FetchFunction<T, Output>
+                : O[K] extends Array<Any>
+                  ? {
+                        [Key in DistributeMethods<O[K][number]>]: DistributeFunctions<O[K][number], Key>;
+                    }
+                  : FinalObjectBuilder<O[K]>;
+      }
+    : O;
+
 export class APIServer<R extends Router<RouterObject>> {
     private router: R;
     private apiPath: string;
     private createContext: CreateContext;
+    public ssr!: FinalObjectBuilder<R['endpoints']>;
 
     constructor(config: { router: R; path: string; context: CreateContext }) {
         this.router = config.router;

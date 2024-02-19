@@ -1,20 +1,6 @@
 import type { Router, RouterObject } from '../router.js';
 import { Params, Procedure, TypedProcedure } from '../server/procedure.js';
-import type { Any, DistributeMethods, ExtractMethod, HydrateData } from '../types.js';
-
-type ExtractType<T> =
-    T extends Procedure<Params<Any, Any, Any, Any>>
-        ? 'NOTHING'
-        : T extends TypedProcedure<Params<infer Type, Any, Any, Any>>
-          ? Type
-          : never;
-
-type ExtractReturnType<T> =
-    T extends Procedure<Params<Any, Any, Any, infer O>>
-        ? O
-        : T extends TypedProcedure<Params<Any, Any, Any, infer O>>
-          ? O
-          : never;
+import type { Any, DistributeMethods, ExtractMethod, ExtractReturnType, ExtractType, HydrateData } from '../types.js';
 
 type FetchFunction<T, O> = T extends 'NOTHING' ? () => Promise<O> : (data: T) => Promise<O>;
 
