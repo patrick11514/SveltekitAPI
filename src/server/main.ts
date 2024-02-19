@@ -45,7 +45,9 @@ export class APICreate<C> {
     }
 }
 
-type FetchFunction<T, O> = T extends 'NOTHING' ? () => Promise<O> : (data: T) => Promise<O>;
+type FetchFunction<T, O> = T extends 'NOTHING'
+    ? (event: RequestEvent) => Promise<O>
+    : (event: RequestEvent, data: T) => Promise<O>;
 
 type DistributeFunctions<T, M> = T extends Any
     ? ExtractMethod<T> extends M
@@ -77,6 +79,223 @@ export class APIServer<R extends Router<RouterObject>> {
         this.router = config.router;
         this.apiPath = config.path.endsWith('/') ? config.path : `${config.path}/`;
         this.createContext = config.context;
+
+        this.generateSSR();
+    }
+
+    private async handleSSR(event: RequestEvent, data: Any, apiPath: string, method: Method) {
+        if (!this.router.includes(apiPath)) {
+            return {
+                status: false,
+                code: 404,
+                message: 'Not found',
+            } satisfies ErrorApiResponse;
+        }
+
+        const path = this.router.getPath(apiPath);
+
+        if (!path) {
+            return {
+                status: false,
+                code: 404,
+                message: 'Not found',
+            } satisfies ErrorApiResponse;
+        }
+
+        const procedure = path[method as Method];
+
+        if (!procedure) {
+            return {
+                status: false,
+                code: 403,
+                message: 'Method not supported',
+            } satisfies ErrorApiResponse;
+        }
+
+        if (method !== 'GET' && procedure instanceof Procedure) {
+            return {
+                status: false,
+                code: 403,
+                message: 'Method not supported',
+            } satisfies ErrorApiResponse;
+        }
+
+        let input: ExtractParams<typeof procedure>['input'] | undefined = undefined;
+
+        if (procedure instanceof TypedProcedure) {
+            try {
+                if (procedure.inputSchema == FormDataInput) {
+                    input = data;
+                } else {
+                    const parsed = procedure.inputSchema.safeParse(data);
+
+                    if (!parsed.success) {
+                        return {
+                            status: false,
+                            code: 400,
+                            message: 'Invalid input',
+                        } satisfies ErrorApiResponse;
+                    }
+
+                    input = parsed.data;
+                }
+            } catch (_) {
+                return {
+                    status: false,
+                    code: 400,
+                    message: 'Invalid input',
+                } satisfies ErrorApiResponse;
+            }
+        }
+
+        return this.mainHandler(event, procedure, method, input);
+    }
+
+    private generateSSR() {
+        const endpoints = this.router.endpoints;
+
+        const newObj = {} as Any;
+
+        const toDone: {
+            key: string;
+            fullPath: string;
+            parent: typeof newObj;
+            obj: RouterObject;
+        }[] = Object.keys(endpoints).map((key) => {
+            return {
+                key,
+                fullPath: key,
+                parent: newObj,
+                obj: endpoints,
+            };
+        });
+
+        const createWrapper = (method: Method, path: string) => {
+            return (event: RequestEvent, data: Any) => {
+                return this.handleSSR(event, data, path, method);
+            };
+        };
+
+        while (toDone.length != 0) {
+            const top = toDone.pop()!;
+            const data = top.obj[top.key];
+
+            if (data instanceof Procedure || data instanceof TypedProcedure) {
+                top.parent[top.key] = createWrapper(data.method, top.fullPath);
+                continue;
+            }
+
+            if (Array.isArray(data)) {
+                top.parent[top.key] = data.map((procedure) => createWrapper(procedure.method, top.fullPath));
+                continue;
+            }
+
+            top.parent[top.key] = {};
+
+            toDone.push(
+                ...Object.keys(data).map((key) => {
+                    return {
+                        key,
+                        fullPath: top.fullPath + '/' + key,
+                        parent: top.parent[top.key] as HydrateDataBuilder,
+                        obj: data,
+                    };
+                }),
+            );
+        }
+
+        this.ssr = newObj;
+    }
+    private async mainHandler(
+        ev: RequestEvent,
+        procedure: Procedure<Any> | TypedProcedure<Any>,
+        method: Method,
+        input: Any,
+    ) {
+        let ctx = await this.createContext(ev);
+
+        //handle input with zod from procedure
+
+        for (const middleware of procedure.middlewares) {
+            try {
+                const result = await Promise.resolve<Params<typeof input, typeof ctx, typeof method, Any>>(
+                    middleware({
+                        ctx,
+                        input,
+                        next: <Context extends object>(newCtx?: Context) => {
+                            if (newCtx) {
+                                return {
+                                    schema: procedure instanceof Procedure ? z.unknown() : procedure.inputSchema,
+                                    ctx: newCtx,
+                                    input,
+                                } as Params<
+                                    typeof input extends undefined ? unknown : typeof input,
+                                    Context,
+                                    typeof method,
+                                    Any
+                                >;
+                            }
+
+                            return {
+                                schema: procedure instanceof Procedure ? z.unknown() : procedure.inputSchema,
+                                ctx,
+                                input,
+                            } as Params<unknown, Context, typeof method, Any>;
+                        },
+                        ev,
+                    }),
+                );
+
+                ctx = result.ctx;
+            } catch (e) {
+                if (e instanceof MiddleWareError) {
+                    return e.data;
+                }
+
+                console.error(e);
+
+                return {
+                    status: false,
+                    code: 500,
+                    message: 'Internal server error',
+                } satisfies ErrorApiResponse;
+            }
+        }
+
+        let result: unknown;
+
+        if (procedure instanceof Procedure) {
+            result = await Promise.resolve(
+                procedure.callback({
+                    ctx,
+                    ev,
+                } as CallBackInputWithoutInput<Any>),
+            );
+        } else {
+            result = await Promise.resolve(
+                procedure.callback({
+                    ctx,
+                    input,
+                    ev,
+                } as CallBackInput<Any>),
+            );
+        }
+
+        let finalResponse: object | string | undefined;
+
+        if (result === undefined || result === null) {
+            finalResponse = undefined;
+        } else if (typeof result === 'string' || typeof result === 'object') {
+            finalResponse = result;
+        } else {
+            finalResponse = {
+                status: false,
+                code: 500,
+                message: 'Internal server error',
+            } satisfies ErrorApiResponse;
+        }
+
+        return finalResponse;
     }
 
     private async _handler(ev: RequestEvent) {
@@ -150,7 +369,7 @@ export class APIServer<R extends Router<RouterObject>> {
                         } satisfies ErrorApiResponse);
                     }
 
-                    input = jsonData;
+                    input = parsed.data;
                 }
             } catch (_) {
                 return json({
@@ -161,92 +380,17 @@ export class APIServer<R extends Router<RouterObject>> {
             }
         }
 
-        let ctx = await this.createContext(ev);
+        const data = await this.mainHandler(ev, procedure, method, input);
+        return this.createResponse(data);
+    }
 
-        //handle input with zod from procedure
-
-        for (const middleware of procedure.middlewares) {
-            try {
-                const result = await Promise.resolve<Params<typeof input, typeof ctx, typeof method, Any>>(
-                    middleware({
-                        ctx,
-                        input,
-                        next: <Context extends object>(newCtx?: Context) => {
-                            if (newCtx) {
-                                return {
-                                    schema: procedure instanceof Procedure ? z.unknown() : procedure.inputSchema,
-                                    ctx: newCtx,
-                                    input,
-                                } as Params<
-                                    typeof input extends undefined ? unknown : typeof input,
-                                    Context,
-                                    typeof method,
-                                    Any
-                                >;
-                            }
-
-                            return {
-                                schema: procedure instanceof Procedure ? z.unknown() : procedure.inputSchema,
-                                ctx,
-                                input,
-                            } as Params<unknown, Context, typeof method, Any>;
-                        },
-                        ev,
-                    }),
-                );
-
-                ctx = result.ctx;
-            } catch (e) {
-                if (e instanceof MiddleWareError) {
-                    return json(e.data);
-                }
-
-                console.error(e);
-
-                return json({
-                    status: false,
-                    code: 500,
-                    message: 'Internal server error',
-                } satisfies ErrorApiResponse);
-            }
+    private createResponse(data: object | string | undefined) {
+        if (typeof data === 'string') {
+            return new Response(data);
+        } else if (typeof data === 'object') {
+            return json(data);
         }
-
-        let result: unknown;
-
-        if (procedure instanceof Procedure) {
-            result = await Promise.resolve(
-                procedure.callback({
-                    ctx,
-                    ev,
-                } as CallBackInputWithoutInput<Any>),
-            );
-        } else {
-            result = await Promise.resolve(
-                procedure.callback({
-                    ctx,
-                    input,
-                    ev,
-                } as CallBackInput<Any>),
-            );
-        }
-
-        let finalResponse: ResponseInit;
-
-        if (typeof result === 'string') {
-            finalResponse = new Response(result);
-        } else if (typeof result === 'object') {
-            finalResponse = json(result);
-        } else if (result === undefined || result === null) {
-            finalResponse = new Response();
-        } else {
-            finalResponse = json({
-                status: false,
-                code: 500,
-                message: 'Internal server error',
-            } satisfies ErrorApiResponse);
-        }
-
-        return finalResponse;
+        return new Response();
     }
 
     public get handler() {
