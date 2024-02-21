@@ -186,7 +186,10 @@ export class APIServer<R extends Router<RouterObject>> {
             }
 
             if (Array.isArray(data)) {
-                top.parent[top.key] = data.map((procedure) => createWrapper(procedure.method, top.fullPath));
+                top.parent[top.key] = {};
+                data.forEach((procedure) => {
+                    top.parent[top.key][procedure.method] = createWrapper(procedure.method, top.fullPath);
+                });
                 continue;
             }
 
