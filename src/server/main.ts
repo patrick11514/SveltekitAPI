@@ -361,8 +361,15 @@ export class APIServer<R extends Router<RouterObject>> {
                 if (procedure.inputSchema == FormDataInput) {
                     input = await request.formData();
                 } else {
-                    const jsonData = await request.json();
-                    const parsed = procedure.inputSchema.safeParse(jsonData);
+                    let data: string | object = await request.text();
+
+                    try {
+                        data = JSON.parse(data);
+                    } catch (_) {
+                        /* empty */
+                    }
+
+                    const parsed = procedure.inputSchema.safeParse(data);
 
                     if (!parsed.success) {
                         return json({
