@@ -33,13 +33,14 @@ const fetchFunction = (path: string, method: string) => {
     return async (data?: Any) => {
         const request = await fetch(path, {
             method,
-            body: data
-                ? data instanceof FormData
-                    ? data
-                    : typeof data === 'object'
-                      ? JSON.stringify(data)
-                      : data
-                : undefined,
+            body:
+                data !== undefined
+                    ? data instanceof FormData
+                        ? data
+                        : typeof data === 'object'
+                          ? JSON.stringify(data)
+                          : data
+                    : undefined,
         });
 
         const text = await request.text();
