@@ -79,7 +79,7 @@ _This package is highly inspired by [TRPC](https://trpc.io)'s structure._
     **src/routes/api/[...data]/+server.ts**
 
     ```TS
-    import { Server } from '$lib/server/server'
+    import { Server } from '$/lib/server/server'
 
     export const GET = Server.handler
     export const POST = Server.handler
@@ -95,7 +95,7 @@ _This package is highly inspired by [TRPC](https://trpc.io)'s structure._
     **src/lib/api.ts**
 
     ```TS
-    import { createAPIClient } from 'sveltekitapihandler'
+    import { createAPIClient } from '@patrick115/sveltekitapi'
     import type { AppRouter } from './server/routes'
 
     export const API = createAPIClient<AppRouter>('/api')
@@ -107,7 +107,7 @@ _This package is highly inspired by [TRPC](https://trpc.io)'s structure._
     **src/routes/+layout.server.ts**
 
     ```TS
-    import { Server } from '$lib/server/server'
+    import { Server } from '$/lib/server/server'
     import type { LayoutServerLoad } from './$types'
 
     export const load = (async () => {
@@ -123,7 +123,7 @@ _This package is highly inspired by [TRPC](https://trpc.io)'s structure._
 
     ```html
     <script lang="ts">
-        import { API } from '$lib/api';
+        import { API } from '$/lib/api';
         import type { LayoutData } from './$types';
 
         export let data: LayoutData;
@@ -140,7 +140,7 @@ _This package is highly inspired by [TRPC](https://trpc.io)'s structure._
 
     ```html
     <script lang="ts">
-        import { API } from '$lib/api';
+        import { API } from '$/lib/api';
         import { onMount } from 'svelte';
 
         onMount(async () => {
@@ -178,7 +178,7 @@ import type { AsyncReturnType, CreateContext } from '@patrick115/sveltekitapi'
 
 export const context = (async (ev) => {
     const ip = ev.getClientAddress()
-    const cookie = ev.cookies.get(session)
+    const cookie = ev.cookies.get("session")
     return {
         cookie,
         ip
