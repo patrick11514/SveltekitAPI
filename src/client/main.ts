@@ -2,33 +2,65 @@ import type { Router, RouterObject } from '../router.js';
 import { Params, Procedure, TypedProcedure } from '../server/procedure.js';
 import type { Any, DistributeMethods, ExtractMethod, ExtractReturnType, ExtractType, HydrateData } from '../types.js';
 
-type FetchFunction<T, O> = T extends 'NOTHING' ? () => Promise<O> : (data: T) => Promise<O>;
+/**
+ * Creates a type for fetch function that fetches data from API
+ * @param $DataType type of input data
+ * @param $ReturnType return type of fetch function
+ */
+type FetchFunction<$DataType, $ReturnType> = $DataType extends 'NOTHING'
+    ? () => Promise<$ReturnType>
+    : (data: $DataType) => Promise<$ReturnType>;
 
-type DistributeFunctions<T, M> = T extends Any
-    ? ExtractMethod<T> extends M
-        ? FetchFunction<ExtractType<T>, ExtractReturnType<T>>
+/**
+ * Extract DataType and Return Type from procedure, if procedure's method and Method doesn't match, it returns never, otherwise it get's Function with DataType and ReturnType
+ * @param $Procedure Single procedure, or union of procedures
+ * @param $Method Method, which selects correct one from union
+ */
+type DistributeFunctions<$Procedure, $Method> = $Procedure extends Any
+    ? ExtractMethod<$Procedure> extends $Method
+        ? FetchFunction<ExtractType<$Procedure>, ExtractReturnType<$Procedure>>
         : never
     : never;
 
-type FinalObjectBuilder<O> = O extends object
+/**
+ * Transform router endpoints object into object of fetch functions, with correspoding parameter types and return types
+ * @param $RouterEndpoints Router endpoint's object
+ */
+type FinalObjectBuilder<$RouterEnpoints> = $RouterEnpoints extends object
     ? {
-          [K in keyof O]: O[K] extends Procedure<Params<Any, Any, Any, infer Output>>
-              ? FetchFunction<'NOTHING', Output>
-              : O[K] extends TypedProcedure<Params<infer T, Any, Any, infer Output>>
-                ? FetchFunction<T, Output>
-                : O[K] extends Array<Any>
+          [$RouterEndpointKey in keyof $RouterEnpoints]: $RouterEnpoints[$RouterEndpointKey] extends Procedure<
+              Params<Any, Any, Any, infer $Output>
+          >
+              ? FetchFunction<'NOTHING', $Output>
+              : $RouterEnpoints[$RouterEndpointKey] extends TypedProcedure<
+                      Params<infer $Input, Any, Any, infer $Output>
+                  >
+                ? FetchFunction<$Input, $Output>
+                : $RouterEnpoints[$RouterEndpointKey] extends Array<Any>
                   ? {
-                        [Key in DistributeMethods<O[K][number]>]: DistributeFunctions<O[K][number], Key>;
+                        [$Method in DistributeMethods<
+                            $RouterEnpoints[$RouterEndpointKey][number]
+                        >]: DistributeFunctions<$RouterEnpoints[$RouterEndpointKey][number], $Method>;
                     }
-                  : FinalObjectBuilder<O[K]>;
+                  : FinalObjectBuilder<$RouterEnpoints[$RouterEndpointKey]>;
       }
-    : O;
+    : $RouterEnpoints;
 
-type APIClient<R extends Router<RouterObject>> = {
+/**
+ * Type of API Client for fetching API
+ * @param $Router Rounter type
+ */
+type APIClient<$Router extends Router<RouterObject>> = {
     basePath: string;
-    hydrateFromServer: (data: HydrateData<R>) => void;
-} & FinalObjectBuilder<R['endpoints']>;
+    hydrateFromServer: (data: HydrateData<$Router>) => void;
+} & FinalObjectBuilder<$Router['endpoints']>;
 
+/**
+ * Function that create internally real function, that fetches data from API
+ * @param path Path to endpoint
+ * @param method Method of endpoint
+ * @returns Fetch function with data param
+ */
 const fetchFunction = (path: string, method: string) => {
     return async (data?: Any) => {
         const request = await fetch(path, {
@@ -55,6 +87,11 @@ const fetchFunction = (path: string, method: string) => {
     };
 };
 
+/**
+ * Creates the client from base path and ensures the correct types based of router
+ * @param basePath base path of API
+ * @returns client which have method hydrateFromServer, which got data from server and modifies itself to have methods correspoding to API methods
+ */
 export const createAPIClient = <R extends Router<RouterObject>>(basePath: string) => {
     return {
         basePath,

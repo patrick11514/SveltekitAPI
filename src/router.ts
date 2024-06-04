@@ -3,20 +3,28 @@ import type { Any, Arrayable } from './types.js';
 
 /**
  * @internal
+ * Router Object type
  */
 export type RouterObject = {
-    [key: string]:
+    [$Key: string]:
         | RouterObject
         | Arrayable<Procedure<Params<Any, Any, Any, Any>> | TypedProcedure<Params<Any, Any, Any, Any>>>;
 };
 
-export class Router<R extends RouterObject> {
-    public endpoints: R;
+/**
+ * Router Class
+ */
+export class Router<$Router extends RouterObject> {
+    public endpoints: $Router;
     private pathedRoutes: Record<string, Partial<Record<Method, Procedure<BaseParams> | TypedProcedure<BaseParams>>>> =
         {};
     private paths: string[] = [];
 
-    constructor(endpoints: R) {
+    /**
+     * Constructor
+     * @param endpoints Router object
+     */
+    constructor(endpoints: $Router) {
         this.endpoints = endpoints;
 
         const keys: {
@@ -65,6 +73,11 @@ export class Router<R extends RouterObject> {
         }
     }
 
+    /**
+     * Check if router includes this path
+     * @param path Path to be checked
+     * @returns If path is included in this router
+     */
     public includes(path: string) {
         if (this.paths.includes(path)) {
             return true;
@@ -73,6 +86,11 @@ export class Router<R extends RouterObject> {
         return false;
     }
 
+    /**
+     * Get procedure form Path
+     * @param path
+     * @returns Procedure on that path, or undefined
+     */
     public getPath(path: keyof typeof this.pathedRoutes) {
         return this.pathedRoutes[path];
     }

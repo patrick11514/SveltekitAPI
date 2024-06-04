@@ -13,7 +13,6 @@ import type {
     HydrateDataBuilder,
 } from '../types.js';
 import {
-    BaseProcedure,
     Procedure,
     TypedProcedure,
     type CallBackInput,
@@ -23,6 +22,9 @@ import {
     type Params,
 } from './procedure.js';
 
+/**
+ * Zod custom type, that checks, if input is FormData
+ */
 export const FormDataInput = z.custom<FormData>((data) => {
     if (data instanceof FormData) {
         return true;
@@ -32,50 +34,67 @@ export const FormDataInput = z.custom<FormData>((data) => {
 
 /**
  * @internal
+ * Type of context method
+ * @param ev SvelteKit's Request event
+ * @return T
  */
 export type ContextMethod<T> = (ev: RequestEvent) => T;
 
-export class APICreate<C> {
-    public router<T extends RouterObject>(endpoints: T) {
-        return new Router<T>(endpoints);
-    }
+/**
+ * Type of fetch function on server when calling Server.ssr....
+ * @param $DataType type of data input
+ * @param $ReturnType return type of function
+ */
+type FetchFunction<$DataType, $ReturnType> = $DataType extends 'NOTHING'
+    ? (event: RequestEvent) => Promise<$ReturnType>
+    : (event: RequestEvent, data: $DataType) => Promise<$ReturnType>;
 
-    get procedure() {
-        return new BaseProcedure<Params<unknown, C, Any, Any>>();
-    }
-}
-
-type FetchFunction<T, O> = T extends 'NOTHING'
-    ? (event: RequestEvent) => Promise<O>
-    : (event: RequestEvent, data: T) => Promise<O>;
-
-type DistributeFunctions<T, M> = T extends Any
-    ? ExtractMethod<T> extends M
-        ? FetchFunction<ExtractType<T>, ExtractReturnType<T>>
+/**
+ * Extract DataType and Return Type from procedure, if procedure's method and Method doesn't match, it returns never, otherwise it get's Function with DataType and ReturnType
+ * @param $Procedure Single procedure, or union of procedures
+ * @param $Method Method, which selects correct one from union
+ */
+type DistributeFunctions<$Procedure, $Method> = $Procedure extends Any
+    ? ExtractMethod<$Procedure> extends $Method
+        ? FetchFunction<ExtractType<$Procedure>, ExtractReturnType<$Procedure>>
         : never
     : never;
 
-type FinalObjectBuilder<O> = O extends object
+/**
+ * Transform router endpoints object into object of fetch functions, with correspoding parameter types and return types
+ * @param $RouterEndpoints Router endpoint's object
+ */
+type FinalObjectBuilder<$RouterEnpoints> = $RouterEnpoints extends object
     ? {
-          [K in keyof O]: O[K] extends Procedure<Params<Any, Any, Any, infer Output>>
+          [K in keyof $RouterEnpoints]: $RouterEnpoints[K] extends Procedure<Params<Any, Any, Any, infer Output>>
               ? FetchFunction<'NOTHING', Output>
-              : O[K] extends TypedProcedure<Params<infer T, Any, Any, infer Output>>
+              : $RouterEnpoints[K] extends TypedProcedure<Params<infer T, Any, Any, infer Output>>
                 ? FetchFunction<T, Output>
-                : O[K] extends Array<Any>
+                : $RouterEnpoints[K] extends Array<Any>
                   ? {
-                        [Key in DistributeMethods<O[K][number]>]: DistributeFunctions<O[K][number], Key>;
+                        [Key in DistributeMethods<$RouterEnpoints[K][number]>]: DistributeFunctions<
+                            $RouterEnpoints[K][number],
+                            Key
+                        >;
                     }
-                  : FinalObjectBuilder<O[K]>;
+                  : FinalObjectBuilder<$RouterEnpoints[K]>;
       }
-    : O;
+    : $RouterEnpoints;
 
-export class APIServer<R extends Router<RouterObject>> {
-    private router: R;
+/**
+ * APIServer class, that get's $Router type
+ */
+export class APIServer<$Router extends Router<RouterObject>> {
+    private router: $Router;
     private apiPath: string;
     private createContext: CreateContext;
-    public ssr!: FinalObjectBuilder<R['endpoints']>;
+    public ssr!: FinalObjectBuilder<$Router['endpoints']>;
 
-    constructor(config: { router: R; path: string; context: CreateContext }) {
+    /**
+     * Constrcutor
+     * @param config Config of APIServer
+     */
+    constructor(config: { router: $Router; path: string; context: CreateContext }) {
         this.router = config.router;
         this.apiPath = config.path.endsWith('/') ? config.path : `${config.path}/`;
         this.createContext = config.context;
@@ -83,6 +102,14 @@ export class APIServer<R extends Router<RouterObject>> {
         this.generateSSR();
     }
 
+    /**
+     * Function to handle SSR got data
+     * @param event SvelteKit's RequestEvent
+     * @param data Data sent to API
+     * @param apiPath Path to API
+     * @param method Method
+     * @returns Output of mainHandler
+     */
     private async handleSSR(event: RequestEvent, data: Any, apiPath: string, method: Method) {
         if (!this.router.includes(apiPath)) {
             return {
@@ -151,6 +178,9 @@ export class APIServer<R extends Router<RouterObject>> {
         return this.mainHandler(event, procedure, method, input);
     }
 
+    /**
+     * Generate SSR object on this class
+     */
     private generateSSR() {
         const endpoints = this.router.endpoints;
 
@@ -209,6 +239,15 @@ export class APIServer<R extends Router<RouterObject>> {
 
         this.ssr = newObj;
     }
+
+    /**
+     * MainHandler that handles all requests of API and SSR
+     * @param ev SvelteKit's RequestEvent
+     * @param procedure Procedure
+     * @param method Method of Request
+     * @param input Input Data
+     * @returns Response of API
+     */
     private async mainHandler(
         ev: RequestEvent,
         procedure: Procedure<Any> | TypedProcedure<Any>,
@@ -301,6 +340,11 @@ export class APIServer<R extends Router<RouterObject>> {
         return finalResponse;
     }
 
+    /**
+     * Function that handle's API Requests
+     * @param ev SvelteKit's Request Event
+     * @returns result of mainHandler wrapped in createResponse
+     */
     private async _handler(ev: RequestEvent) {
         const { request } = ev;
         const { method: baseMethod, url } = request;
@@ -394,6 +438,11 @@ export class APIServer<R extends Router<RouterObject>> {
         return this.createResponse(data);
     }
 
+    /**
+     * Create response based of return data from mainHandler
+     * @param data data from mainHandler
+     * @returns SvelteKit's Response
+     */
     private createResponse(data: object | string | undefined) {
         if (typeof data === 'string') {
             return new Response(data);
@@ -403,12 +452,25 @@ export class APIServer<R extends Router<RouterObject>> {
         return new Response();
     }
 
+    /**
+     * Handler used in SvelteKit's +server.ts file and makes sure, that correct this is bind
+     *
+     * Example:
+     * ```TS
+     * export const GET = server.handler;
+     * export const POST = server.handler;
+     * ```
+     */
     public get handler() {
         return this._handler.bind(this);
     }
 
-    //Maybe later require RequestEvent as param, because it contains locals, which `Contains custom data that was added to the request within the handle hook.`
-    public hydrateToClient(): HydrateData<R> {
+    /**
+     * Method, that return's object, that has same structure as Router, but instead of Procedures, it contains name of Methods or Array of Methods of that Endpoint
+     * @note Maybe later require RequestEvent as param, because it contains locals, which `Contains custom data that was added to the request within the handle hook.
+     * @returns
+     */
+    public hydrateToClient(): HydrateData<$Router> {
         const endpoints = this.router.endpoints;
 
         const newObj = {} as HydrateDataBuilder;
@@ -452,10 +514,13 @@ export class APIServer<R extends Router<RouterObject>> {
             );
         }
 
-        return newObj as HydrateData<R>;
+        return newObj as HydrateData<$Router>;
     }
 }
 
+/**
+ * MiddleWareError class
+ */
 export class MiddleWareError extends Error {
     public data: ErrorApiResponse;
 
