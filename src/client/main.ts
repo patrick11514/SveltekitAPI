@@ -121,11 +121,35 @@ export const createAPIClient = <R extends Router<RouterObject>>(basePath: string
                 }
 
                 if (Array.isArray(data)) {
-                    top.parent[top.key] = {};
+                    if (!(top.key in top.parent)) {
+                        top.parent[top.key] = {};
+                    }
 
-                    data.forEach((procedure) => {
+                    const procedures: string[] = [];
+                    let subRoute = {};
+
+                    for (const item of data) {
+                        if (typeof item === 'object') {
+                            subRoute = item;
+                        } else {
+                            procedures.push(item);
+                        }
+                    }
+
+                    procedures.forEach((procedure) => {
                         top.parent[top.key][procedure] = fetchFunction(this.basePath + top.fullPath, procedure);
                     });
+
+                    toDo.push(
+                        ...Object.keys(subRoute).map((key) => {
+                            return {
+                                fullPath: top.fullPath + '/' + key,
+                                key,
+                                parent: top.parent[top.key],
+                                obj: subRoute,
+                            };
+                        }),
+                    );
                     continue;
                 }
 
