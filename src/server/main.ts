@@ -14,6 +14,7 @@ import type {
 } from '../types.js';
 import {
     BaseParams,
+    BaseProcedure,
     Procedure,
     TypedProcedure,
     type CallBackInput,
@@ -40,6 +41,19 @@ export const FormDataInput = z.custom<FormData>((data) => {
  * @return T
  */
 export type ContextMethod<T> = (ev: RequestEvent) => T;
+
+/**
+ * Class which is used to create Router + Basic Procedure
+ */
+export class APICreate<$Context> {
+    public router<$Router extends RouterObject>(endpoints: $Router) {
+        return new Router<$Router>(endpoints);
+    }
+
+    get procedure() {
+        return new BaseProcedure<Params<unknown, $Context, Any, Any>>();
+    }
+}
 
 /**
  * Type of fetch function on server when calling Server.ssr....
