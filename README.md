@@ -318,3 +318,52 @@ const data = await API.example(formData)
 console.log(data) //Hello Patrik
 //           ^? data: "Hello ${string}"
 ```
+
+Extending endpoint with sub routes
+
+```TS
+import { z } from 'zod'
+import { procedure, router } from './api'
+
+export const r = router({
+    example: [
+        procedure.GET.query(() => {
+            return `Hello world` as const
+        }),
+        procedure.POST.input(
+            z.object({
+                username: z.string()
+            })
+        ).query(({ input }) => {
+            return `Hello ${input.username}` as const
+        }),
+        //Subroutes
+        {
+            // /api/example/hello
+            hello: procedure.GET.query(() => {
+                return "Hello World, again" as const
+            })
+        }
+    ]
+})
+
+export type AppRouter = typeof r
+```
+
+Calling this procedure from frontend.
+
+```TS
+const data = await API.example.GET() //here we can see, that we need to select which method we want to call
+console.log(data)
+//           ^? data: "Hello world"
+
+const data2 = await API.example.POST({
+    username: 'Patrik'
+})
+console.log(data2)
+//           ^? data: "Hello ${string}"
+
+const data3 = await API.example.hello()
+console.log(data3)
+//           ^? data: "Hello World, again"
+```
