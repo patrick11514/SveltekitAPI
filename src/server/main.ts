@@ -526,7 +526,12 @@ export class APIServer<$Router extends Router<RouterObject>> {
     /**
      * Method, that return's object, that has same structure as Router, but instead of Procedures, it contains name of Methods or Array of Methods of that Endpoint
      * @note Maybe later require RequestEvent as param, because it contains locals, which `Contains custom data that was added to the request within the handle hook.
-     * @returns
+     * @returns Object structure representing endpoints like this:
+     * {
+     *      "user": {
+     *          "login": ["GET", "POST"] // /api/user/login supports GET and POST method
+     *      }
+     * }
      */
     public hydrateToClient(): HydrateData<$Router> {
         const endpoints = this.router.endpoints;
@@ -559,12 +564,17 @@ export class APIServer<$Router extends Router<RouterObject>> {
                 const procedures: (Procedure<BaseParams> | TypedProcedure<BaseParams>)[] = [];
                 //merge objects, last object keys are in priority
                 let subRouter: RouterObject = {};
+                let subRouterSet = false;
 
                 for (const item of data) {
                     if (item instanceof Procedure || item instanceof TypedProcedure) {
                         procedures.push(item);
                     } else {
-                        subRouter = { ...subRouter, ...item };
+                        if (subRouterSet === true) {
+                            throw new Error('Route can only have single sub-route object.');
+                        }
+                        subRouterSet = true;
+                        subRouter = item;
                     }
                 }
 

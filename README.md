@@ -337,7 +337,7 @@ export const r = router({
         ).query(({ input }) => {
             return `Hello ${input.username}` as const
         }),
-        //Subroutes
+        //Subroutes, but only single sub-object is supported
         {
             // /api/example/hello
             hello: procedure.GET.query(() => {
