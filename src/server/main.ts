@@ -82,23 +82,27 @@ type DistributeFunctions<$Procedure, $Method> = $Procedure extends Any
  * Transform router endpoints object into object of fetch functions, with correspoding parameter types and return types
  * @param $RouterEndpoints Router endpoint's object
  */
-export type FinalObjectBuilder<$RouterEnpoints> = $RouterEnpoints extends object
+type FinalObjectBuilder<$RouterEnpoints> = $RouterEnpoints extends object
     ? {
-          [K in keyof $RouterEnpoints]: $RouterEnpoints[K] extends Procedure<Params<Any, Any, Any, infer Output>>
+          [$RouterEndpointKey in keyof $RouterEnpoints]: $RouterEnpoints[$RouterEndpointKey] extends Procedure<
+              Params<Any, Any, Any, infer Output>
+          >
               ? FetchFunction<'NOTHING', Output>
-              : $RouterEnpoints[K] extends TypedProcedure<Params<infer T, Any, Any, infer Output>>
+              : $RouterEnpoints[$RouterEndpointKey] extends TypedProcedure<Params<infer T, Any, Any, infer Output>>
                 ? FetchFunction<T, Output>
-                : $RouterEnpoints[K] extends Array<Any>
+                : $RouterEnpoints[$RouterEndpointKey] extends Array<Any>
                   ? {
-                        [Key in DistributeMethods<$RouterEnpoints[K][number]>]: DistributeFunctions<
-                            $RouterEnpoints[K][number],
+                        [Key in DistributeMethods<$RouterEnpoints[$RouterEndpointKey][number]>]: DistributeFunctions<
+                            $RouterEnpoints[$RouterEndpointKey][number],
                             Key
                         >;
                     } & TransformNever<
-                        FinalObjectBuilder<NonMethods<DistributeNonMethods<$RouterEnpoints[K][number]>>>,
+                        FinalObjectBuilder<
+                            NonMethods<DistributeNonMethods<$RouterEnpoints[$RouterEndpointKey][number]>>
+                        >,
                         Record<string, never>
                     >
-                  : FinalObjectBuilder<$RouterEnpoints[K]>;
+                  : FinalObjectBuilder<$RouterEnpoints[$RouterEndpointKey]>;
       }
     : $RouterEnpoints;
 
