@@ -553,13 +553,15 @@ export class APIServer<$Router extends Router<RouterObject>> {
                     }
                 }
 
-                top.parent[top.key] = procedures.map((procedure) => procedure.method);
+                const object = {} as HydrateDataBuilder;
+
+                top.parent[top.key] = [...procedures.map((procedure) => procedure.method), object];
 
                 toDone.push(
                     ...Object.keys(subRouter).map((key) => {
                         return {
                             key,
-                            parent: top.parent[top.key] as HydrateDataBuilder,
+                            parent: object,
                             obj: subRouter,
                         };
                     }),

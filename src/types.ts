@@ -93,7 +93,7 @@ export type MethodsToRoot<$RouterEndpoints> = $RouterEndpoints extends object
  * @internal
  * Type of HydrateDataBuilder
  */
-export type HydrateDataBuilder = { [key: string]: HydrateDataBuilder | Method | Method[] };
+export type HydrateDataBuilder = { [key: string]: HydrateDataBuilder | Method | (Method | HydrateDataBuilder)[] };
 /**
  * @internal
  * Type of HydrateData
