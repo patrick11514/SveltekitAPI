@@ -8,7 +8,7 @@ import type { Any, Arrayable } from './types.js';
 export type RouterObject = {
     [$Key: string]:
         | RouterObject
-        | Arrayable<Procedure<Params<Any, Any, Any, Any>> | TypedProcedure<Params<Any, Any, Any, Any>>>;
+        | Arrayable<Procedure<Params<Any, Any, Any, Any>> | TypedProcedure<Params<Any, Any, Any, Any>> | RouterObject>;
 };
 
 /**
@@ -54,11 +54,34 @@ export class Router<$Router extends RouterObject> {
 
                 const baseRecord: Partial<Record<Method, Procedure<BaseParams> | TypedProcedure<BaseParams>>> = {};
 
-                for (const procedure of value) {
+                //separate procedures and subroutes
+                const procedures: (Procedure<BaseParams> | TypedProcedure<BaseParams>)[] = [];
+                //merge objects, last object keys are in priority
+                let subRouter: RouterObject = {};
+
+                for (const item of value) {
+                    if (item instanceof Procedure || item instanceof TypedProcedure) {
+                        procedures.push(item);
+                    } else {
+                        subRouter = { ...subRouter, ...item };
+                    }
+                }
+
+                for (const procedure of procedures) {
                     baseRecord[procedure.method] = procedure;
                 }
 
                 this.pathedRoutes[key.path] = baseRecord;
+
+                //subkeys of router
+
+                const subKeys = Object.keys(subRouter).map((subKey) => ({
+                    id: subKey,
+                    path: `${key.path}/${subKey}`,
+                    endpoints: subRouter,
+                }));
+
+                keys.push(...subKeys);
 
                 continue;
             }

@@ -13,6 +13,7 @@ import type {
     HydrateDataBuilder,
 } from '../types.js';
 import {
+    BaseParams,
     Procedure,
     TypedProcedure,
     type CallBackInput,
@@ -217,9 +218,37 @@ export class APIServer<$Router extends Router<RouterObject>> {
 
             if (Array.isArray(data)) {
                 top.parent[top.key] = {};
-                data.forEach((procedure) => {
+
+                //separate procedures and subroutes
+                const procedures: (Procedure<BaseParams> | TypedProcedure<BaseParams>)[] = [];
+                //merge objects, last object keys are in priority
+                let subRouter: RouterObject = {};
+
+                for (const item of data) {
+                    if (item instanceof Procedure || item instanceof TypedProcedure) {
+                        procedures.push(item);
+                    } else {
+                        subRouter = { ...subRouter, ...item };
+                    }
+                }
+
+                procedures.forEach((procedure) => {
                     top.parent[top.key][procedure.method] = createWrapper(procedure.method, top.fullPath);
                 });
+
+                //add subroutes
+
+                toDone.push(
+                    ...Object.keys(subRouter).map((key) => {
+                        return {
+                            key,
+                            fullPath: top.fullPath + '/' + key,
+                            parent: top.parent[top.key] as HydrateDataBuilder,
+                            obj: subRouter,
+                        };
+                    }),
+                );
+
                 continue;
             }
 
@@ -497,7 +526,30 @@ export class APIServer<$Router extends Router<RouterObject>> {
             }
 
             if (Array.isArray(data)) {
-                top.parent[top.key] = data.map((procedure) => procedure.method);
+                //separate procedures and subroutes
+                const procedures: (Procedure<BaseParams> | TypedProcedure<BaseParams>)[] = [];
+                //merge objects, last object keys are in priority
+                let subRouter: RouterObject = {};
+
+                for (const item of data) {
+                    if (item instanceof Procedure || item instanceof TypedProcedure) {
+                        procedures.push(item);
+                    } else {
+                        subRouter = { ...subRouter, ...item };
+                    }
+                }
+
+                top.parent[top.key] = procedures.map((procedure) => procedure.method);
+
+                toDone.push(
+                    ...Object.keys(subRouter).map((key) => {
+                        return {
+                            key,
+                            parent: top.parent[top.key] as HydrateDataBuilder,
+                            obj: subRouter,
+                        };
+                    }),
+                );
                 continue;
             }
 
