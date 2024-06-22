@@ -73,6 +73,25 @@ export type DistributeMethods<$PossibleProcedure> = $PossibleProcedure extends A
 
 /**
  * @internal
+ * Extracts method from $Procedure
+ */
+export type ExtractNonMethod<$Procedure> =
+    $Procedure extends Procedure<Params<Any, Any, Any, Any>>
+        ? never
+        : $Procedure extends TypedProcedure<Params<Any, Any, Any, Any>>
+          ? never
+          : $Procedure;
+
+/**
+ * @internal
+ * Tries to extract method from procedure, or union of procedures and if it was not possible, return that type
+ */
+export type DistributeNonMethods<$PossibleProcedure> = $PossibleProcedure extends Any
+    ? ExtractNonMethod<$PossibleProcedure>
+    : never;
+
+/**
+ * @internal
  * Goes through object of endpoints and convert each procedure to corresponding Method, or array of Methods
  */
 export type MethodsToRoot<$RouterEndpoints> = $RouterEndpoints extends object
@@ -128,3 +147,14 @@ export type ExtractReturnType<$Procedure> =
         : $Procedure extends TypedProcedure<Params<Any, Any, Any, infer $Output>>
           ? $Output
           : never;
+
+/**
+ * Extract non methods from $PossiblyMethod
+ * @param $PossiblyMethod union including methods and other things
+ */
+export type NonMethods<$PossiblyMethod> = $PossiblyMethod extends Method ? never : $PossiblyMethod;
+
+/**
+ * Checks if $PossibleNever is never, and if it returns $NewType, otherwise it keeps $PossibleNever
+ */
+export type TransformNever<$PossibleNever, $NewType> = [$PossibleNever] extends [never] ? $NewType : $PossibleNever;

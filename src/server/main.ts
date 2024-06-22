@@ -5,12 +5,15 @@ import type {
     Any,
     CreateContext,
     DistributeMethods,
+    DistributeNonMethods,
     ErrorApiResponse,
     ExtractMethod,
     ExtractReturnType,
     ExtractType,
     HydrateData,
     HydrateDataBuilder,
+    NonMethods,
+    TransformNever,
 } from '../types.js';
 import {
     BaseParams,
@@ -79,7 +82,7 @@ type DistributeFunctions<$Procedure, $Method> = $Procedure extends Any
  * Transform router endpoints object into object of fetch functions, with correspoding parameter types and return types
  * @param $RouterEndpoints Router endpoint's object
  */
-type FinalObjectBuilder<$RouterEnpoints> = $RouterEnpoints extends object
+export type FinalObjectBuilder<$RouterEnpoints> = $RouterEnpoints extends object
     ? {
           [K in keyof $RouterEnpoints]: $RouterEnpoints[K] extends Procedure<Params<Any, Any, Any, infer Output>>
               ? FetchFunction<'NOTHING', Output>
@@ -91,10 +94,18 @@ type FinalObjectBuilder<$RouterEnpoints> = $RouterEnpoints extends object
                             $RouterEnpoints[K][number],
                             Key
                         >;
-                    }
+                    } & TransformNever<
+                        FinalObjectBuilder<NonMethods<DistributeNonMethods<$RouterEnpoints[K][number]>>>,
+                        Record<string, never>
+                    >
                   : FinalObjectBuilder<$RouterEnpoints[K]>;
       }
     : $RouterEnpoints;
+
+//    [Key in DistributeMethods<$RouterEnpoints[K][number]>]: DistributeFunctions<
+//    $RouterEnpoints[K][number],
+//    Key
+//    >;
 
 /**
  * APIServer class, that get's $Router type
