@@ -1,6 +1,16 @@
 import type { Router, RouterObject } from '../router.js';
 import { Params, Procedure, TypedProcedure } from '../server/procedure.js';
-import type { Any, DistributeMethods, ExtractMethod, ExtractReturnType, ExtractType, HydrateData } from '../types.js';
+import type {
+    Any,
+    DistributeMethods,
+    DistributeNonMethods,
+    ExtractMethod,
+    ExtractReturnType,
+    ExtractType,
+    HydrateData,
+    NonMethods,
+    TransformNever,
+} from '../types.js';
 
 /**
  * Creates a type for fetch function that fetches data from API
@@ -41,7 +51,12 @@ type FinalObjectBuilder<$RouterEnpoints> = $RouterEnpoints extends object
                         [$Method in DistributeMethods<
                             $RouterEnpoints[$RouterEndpointKey][number]
                         >]: DistributeFunctions<$RouterEnpoints[$RouterEndpointKey][number], $Method>;
-                    }
+                    } & TransformNever<
+                        FinalObjectBuilder<
+                            NonMethods<DistributeNonMethods<$RouterEnpoints[$RouterEndpointKey][number]>>
+                        >,
+                        Record<string, never>
+                    >
                   : FinalObjectBuilder<$RouterEnpoints[$RouterEndpointKey]>;
       }
     : $RouterEnpoints;
