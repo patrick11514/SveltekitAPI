@@ -479,11 +479,11 @@ export class APIServer<$Router extends Router<RouterObject>> {
                     if (!parsed.success) {
                         const messages = parsed.error.errors.map((error) => error.message);
 
-                        return {
+                        return json({
                             status: false,
                             code: 400,
                             message: messages,
-                        } satisfies ErrorInputResponse;
+                        } satisfies ErrorInputResponse);
                     }
 
                     input = parsed.data;
