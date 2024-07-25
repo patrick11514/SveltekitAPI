@@ -7,6 +7,7 @@ import type {
     DistributeMethods,
     DistributeNonMethods,
     ErrorApiResponse,
+    ErrorInputResponse,
     ExtractMethod,
     ExtractReturnType,
     ExtractType,
@@ -187,11 +188,13 @@ export class APIServer<$Router extends Router<RouterObject>> {
                     const parsed = procedure.inputSchema.safeParse(data);
 
                     if (!parsed.success) {
+                        const messages = parsed.error.errors.map((error) => error.message);
+
                         return {
                             status: false,
                             code: 400,
-                            message: 'Invalid input',
-                        } satisfies ErrorApiResponse;
+                            message: messages,
+                        } satisfies ErrorInputResponse;
                     }
 
                     input = parsed.data;
@@ -474,11 +477,13 @@ export class APIServer<$Router extends Router<RouterObject>> {
                     const parsed = procedure.inputSchema.safeParse(data);
 
                     if (!parsed.success) {
-                        return json({
+                        const messages = parsed.error.errors.map((error) => error.message);
+
+                        return {
                             status: false,
                             code: 400,
-                            message: 'Invalid input',
-                        } satisfies ErrorApiResponse);
+                            message: messages,
+                        } satisfies ErrorInputResponse;
                     }
 
                     input = parsed.data;

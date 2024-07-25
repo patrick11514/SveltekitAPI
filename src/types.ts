@@ -42,6 +42,15 @@ export type ErrorApiResponse = {
 };
 
 /**
+ * ErrorInputResponse type
+ */
+export type ErrorInputResponse = {
+    status: false;
+    code: number;
+    message: string[];
+};
+
+/**
  * @internal
  * If $BaseArray is array, it replaces array to array of $NewType, otherwise it keeps $BaseArray type
  */
