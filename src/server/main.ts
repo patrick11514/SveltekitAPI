@@ -199,7 +199,8 @@ export class APIServer<$Router extends Router<RouterObject>> {
 
                     input = parsed.data;
                 }
-            } catch (_) {
+            } catch (err) {
+                console.error(err);
                 return {
                     status: false,
                     code: 400,
@@ -488,7 +489,8 @@ export class APIServer<$Router extends Router<RouterObject>> {
 
                     input = parsed.data;
                 }
-            } catch (_) {
+            } catch (err) {
+                console.error(err);
                 return json({
                     status: false,
                     code: 400,
