@@ -3,6 +3,6 @@ import type { LayoutServerLoad } from './$types';
 
 export const load = (async () => {
     return {
-        api: Server.hydrateToClient()
+        api: Server.hydrateToClient(),
     };
 }) satisfies LayoutServerLoad;

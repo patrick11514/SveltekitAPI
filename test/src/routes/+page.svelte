@@ -1,13 +1,14 @@
 <script lang="ts">
     import { API } from '$/lib/api';
     import { onMount } from 'svelte';
-    import type { PageServerData } from './$types';
+    import type { PageProps } from './$types';
+    import { enhance } from '$app/forms';
 
-    export let data: PageServerData;
+    const { data, form }: PageProps = $props();
 
-    let clientData: any[] = [];
+    let clientData = $state<any[]>([]);
 
-    let testResult: boolean[] = [];
+    let testResult = $state<boolean[]>([]);
 
     onMount(async () => {
         console.log(await API.experiment.aa());
@@ -33,7 +34,7 @@
 
                 document.cookie = 'name=patrick115; expires=Thu, 01 Jan 1970 00:00:00 GMT';
                 return [withoutCookie, withCookie];
-            })()
+            })(),
         ];
 
         const results = [
@@ -42,7 +43,7 @@
             'fulfilled',
             'fulfilled',
             'fulfilled',
-            'fulfilled'
+            'fulfilled',
         ] satisfies PromiseSettledResult<void>['status'][];
 
         const promiseResult = await Promise.allSettled(responses);
@@ -91,3 +92,17 @@
         Client Status: {testResult[id] === true ? '👍' : '👎'}
     </pre>
 {/each}
+
+<form method="POST" use:enhance>
+    <input type="text" name="username" placeholder="Name" />
+    <input type="password" name="password" placeholder="Password" />
+    <button type="submit">Submit</button>
+</form>
+{JSON.stringify(form)}
+{#if form === null}
+    <p>Form is null</p>
+{:else if form.status == true}
+    <p>You've entered correct data</p>
+{:else}
+    <p>You've entered incorrect data</p>
+{/if}

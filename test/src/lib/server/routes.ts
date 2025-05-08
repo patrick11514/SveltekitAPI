@@ -1,6 +1,6 @@
-import { FormDataInput } from '@patrick115/sveltekitapi';
 import { z } from 'zod';
 import { procedure, protectedProcedure, router } from './api';
+import { FormDataInput } from '@patrick115/sveltekitapi';
 
 export const r = router({
     testGET: procedure.GET.query(async () => {
@@ -11,7 +11,7 @@ export const r = router({
     }),
     multipleMethods: [
         procedure.GET.query(async () => 'GET'),
-        procedure.POST.input(z.string()).query(async ({ input }) => input)
+        procedure.POST.input(z.string()).query(async ({ input }) => input),
     ],
     formData: procedure.PUT.input(FormDataInput).query(({ input }) => {
         const resultObject: Record<string, unknown> = {};
@@ -28,9 +28,18 @@ export const r = router({
     experiment: [
         procedure.GET.query(() => 'test1'),
         {
-            aa: procedure.GET.query(() => 'test2')
+            aa: procedure.GET.query(() => 'test2'),
+        },
+    ],
+    form: procedure.POST.input(FormDataInput).query(({ input }) => {
+        const username = input.get('username');
+        const password = input.get('password');
+
+        if (username === 'admin' && password === 'admin') {
+            return { status: true };
         }
-    ]
+        return { status: false };
+    }),
 });
 
 export type AppRouter = typeof r;

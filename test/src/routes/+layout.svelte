@@ -1,10 +1,11 @@
 <script lang="ts">
     import { API } from '$/lib/api';
+    import type { Snippet } from 'svelte';
     import type { LayoutData } from './$types';
 
-    export let data: LayoutData;
+    let { children, data }: { children: Snippet, data: LayoutData } = $props();
 
     API.hydrateFromServer(data.api);
 </script>
 
-<slot />
+{@render children()}
