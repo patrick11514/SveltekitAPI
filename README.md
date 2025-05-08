@@ -8,8 +8,8 @@ _This package is highly inspired by [TRPC](https://trpc.io)'s structure._
 
 ![Showcase](./assets/showcase.gif)
 
--   First step is creating new API with your context, which will be accesible in every procedure and middleware.
-    Also you can export router and basic procedure.
+- First step is creating new API with your context, which will be accesible in every procedure and middleware.
+  Also you can export router and basic procedure.
 
     **src/lib/server/api.ts**
 
@@ -25,7 +25,7 @@ _This package is highly inspired by [TRPC](https://trpc.io)'s structure._
 
     ```
 
--   Here you can create your context, which get called on every request and get passed SvelteKit's RequestEvent.
+- Here you can create your context, which get called on every request and get passed SvelteKit's RequestEvent.
 
     **src/lib/server/context.ts**
 
@@ -39,7 +39,7 @@ _This package is highly inspired by [TRPC](https://trpc.io)'s structure._
     export type Context = AsyncReturnType<typeof context>
     ```
 
--   Now we create router and pass object to it with our procedures. In each procedure we can specify HTTP method (GET, POST, PUT, DELETE, PATCH). For methods other than GET we can specify input schema with .input(ZodSchema). Then we specify what to do with the request with .query(). Parameters for query function are: context, input (in case of method other than GET), and ev, which is RequestEvent from SvelteKit in case you need to set cookies, or get user's ip or access the raw request.
+- Now we create router and pass object to it with our procedures. In each procedure we can specify HTTP method (GET, POST, PUT, DELETE, PATCH). For methods other than GET we can specify input schema with .input(ZodSchema). Then we specify what to do with the request with .query(). Parameters for query function are: context, input (in case of method other than GET), and ev, which is RequestEvent from SvelteKit in case you need to set cookies, or get user's ip or access the raw request.
 
     **src/lib/server/routes.ts**
 
@@ -57,7 +57,7 @@ _This package is highly inspired by [TRPC](https://trpc.io)'s structure._
     export type AppRouter = typeof r
     ```
 
--   At the end we create server and pass in the router, path to API and context.
+- At the end we create server and pass in the router, path to API and context.
 
     **src/lib/server/server.ts**
 
@@ -73,8 +73,8 @@ _This package is highly inspired by [TRPC](https://trpc.io)'s structure._
     })
     ```
 
--   If we want to use our API in SvelteKit's endpoint we can do it like this:
-    (export const for each method you want to use, in this case GET, POST, PUT, DELETE, PATCH)
+- If we want to use our API in SvelteKit's endpoint we can do it like this:
+  (export const for each method you want to use, in this case GET, POST, PUT, DELETE, PATCH)
 
     **src/routes/api/[...data]/+server.ts**
 
@@ -89,8 +89,8 @@ _This package is highly inspired by [TRPC](https://trpc.io)'s structure._
 
     ```
 
--   Now syncing with frontend
--   First we create an API client. As type we pass our router type and as parameter we pass rootPath for our API (same as in server).
+- Now syncing with frontend
+- First we create an API client. As type we pass our router type and as parameter we pass rootPath for our API (same as in server).
 
     **src/lib/api.ts**
 
@@ -102,7 +102,7 @@ _This package is highly inspired by [TRPC](https://trpc.io)'s structure._
 
     ```
 
--   Syncing with frontend. From load function we return object with our object returned from Server.hydrateToClient() function.
+- Syncing with frontend. From load function we return object with our object returned from Server.hydrateToClient() function.
 
     **src/routes/+layout.server.ts**
 
@@ -117,7 +117,7 @@ _This package is highly inspired by [TRPC](https://trpc.io)'s structure._
     }) satisfies LayoutServerLoad
     ```
 
--   Now we need to pass this object to our client
+- Now we need to pass this object to our client
 
     **src/routes/+layout.svelte**
 
@@ -135,7 +135,7 @@ _This package is highly inspired by [TRPC](https://trpc.io)'s structure._
     {@render children()}
     ```
 
--   Now we can call our API from our frontend
+- Now we can call our API from our frontend
 
     **src/routes/+page.svelte**
 
@@ -305,6 +305,7 @@ export const r = router({
     })
 })
 
+
 export type AppRouter = typeof r
 
 ```
@@ -341,6 +342,7 @@ export const r = router({
         //Subroutes, but only single sub-object is supported
         {
             // /api/example/hello
+
             hello: procedure.GET.query(() => {
                 return "Hello World, again" as const
             })
@@ -367,4 +369,88 @@ console.log(data2)
 const data3 = await API.example.hello()
 console.log(data3)
 //           ^? data: "Hello World, again"
+```
+
+# Server Side Render
+
+If you want to render some data from your API on server side, you can use **Server.ssr** object. This object contains similar structure as API object. Only difference is, that it doesn't make the fetch request, but directly call the function, since its in same memory space. Also because direct calling, you cannot get context of the request, you need to pass it as first parameter. GET method now requres 1 argument instead of 0, and other methods 2 arguments instead of 1. First argument is context and second is input.
+
+For example I have the example route with GET and POST method. I can call it like this in server side render:
+
+**+page.server.ts**
+
+```TS
+export const load = (async (event) => {
+    const data = await API.example.GET(event)
+    const data2 = await API.example.POST(event, { username: 'Patrik' })
+    return {
+        data,
+        data2
+    }
+}) satisfies PageServerLoad
+```
+
+now can we access this data on our page:
+
+```Svelte
+<script lang="ts">
+    import type { PageProps } from './$types'
+
+    const { data }: PageProps = $props();
+
+    console.log(data) //Hello world
+    console.log(data2) //Hello Patrik
+</script>
+<h1>Hello from SvelteKit!</h1>
+```
+
+# Form Actions
+
+SvelteKit also have something called actions, which are used to handle form submissions.
+More on that [here](https://svelte.dev/docs/kit/form-actions)
+
+We can use our API in actions as well. The input type of procedure should be FormDataInput, and technically the Method doesn't matter, but preffer the POST.
+Then you can use the `Server.actions` object to call the procedure. It have the similar structure to API object, or Server.ssr object, but is used for actions only.
+
+The example will also use the `use:enhance` which simply means, that if we have JavaScript in browser, instead of reloading the page, it will send the request to the action and update the `form` object with the response.
+
+First we will create our route:
+
+```TS
+export const r = router({
+    form: procedure.POST.input(FormDataInput).query(({ input }) => {
+        const name = input.get('name')
+        return `Hello ${name ?? 'World'}` as const
+    }),
+})
+```
+
+We don't account for previous context, just for simplicity we have a new router with only one route called `form`.
+
+Now we create our action:
+
+```TS
+import { Server } from '$/lib/server/server';
+import type { Actions } from '@sveltejs/kit';
+
+export const actions = {
+    default: Server.actions.form
+} satisfies Actions
+```
+
+now we create our form with enhance:
+
+```Svelte
+<script lang="ts">
+    import type { PageProps } from './$types'
+    import { enhance } from '$app/forms'
+
+    const { form }: PageProps = $props();
+</script>
+{JSON.stringify(form)} //Before submit it will be `null`and after submit it will be `{"name":"Patrik"}`
+
+<form method="POST" use:enhance>
+    <input type="text" name="name" /> <!-- for example we enter here "Patrik" -->
+    <button type="submit">Submit</button> <!-- And then we submit !-->
+</form>
 ```
