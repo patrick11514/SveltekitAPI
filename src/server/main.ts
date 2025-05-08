@@ -104,6 +104,18 @@ type FinalObjectBuilder<$RouterEndpoints> = $RouterEndpoints extends object
     }
     : never;
 
+type FormActionWrapper<T> = T extends (event: RequestEvent, data: any) => Promise<infer R>
+    ? (event: RequestEvent) => Promise<R>
+    : never;
+
+type CreateActionsFromSSR<T> = {
+    [K in keyof T]: T[K] extends (event: RequestEvent, data: any) => Promise<any>
+    ? FormActionWrapper<T[K]>
+    : T[K] extends object
+    ? CreateActionsFromSSR<T[K]>
+    : never;
+};
+
 /**
  * APIServer class, that get's $Router type
  */
@@ -112,6 +124,7 @@ export class APIServer<$Router extends Router<RouterObject>> {
     private apiPath: string;
     private createContext: CreateContext;
     public ssr!: FinalObjectBuilder<$Router['endpoints']>;
+    public actions!: CreateActionsFromSSR<FinalObjectBuilder<$Router['endpoints']>>;
 
     /**
      * Constrcutor
@@ -123,6 +136,7 @@ export class APIServer<$Router extends Router<RouterObject>> {
         this.createContext = config.context;
 
         this.generateSSR();
+        this.generateActions();
     }
 
     /**
@@ -615,6 +629,27 @@ export class APIServer<$Router extends Router<RouterObject>> {
         }
 
         return newObj as HydrateData<$Router>;
+    }
+
+    private createActions(ssrObject: Any) {
+        const result: Any = {};
+        for (const key in ssrObject) {
+            const value = ssrObject[key];
+            if (typeof value === 'function') {
+                result[key] = async (event: RequestEvent) => {
+                    const form = await event.request.formData();
+                    return await value(event, form);
+                };
+            } else if (typeof value === 'object' && value !== null) {
+                result[key] = this.createActions(value);
+            }
+        }
+
+        return result;
+    }
+
+    private generateActions() {
+        this.actions = this.createActions(this.ssr);
     }
 }
 
