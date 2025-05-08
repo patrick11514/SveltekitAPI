@@ -32,10 +32,7 @@ import {
  * Zod custom type, that checks, if input is FormData
  */
 export const FormDataInput = z.custom<FormData>((data) => {
-    if (data instanceof FormData) {
-        return true;
-    }
-    return false;
+    return data instanceof FormData;
 });
 
 /**
@@ -75,42 +72,49 @@ type FetchFunction<$DataType, $ReturnType> = $DataType extends 'NOTHING'
  */
 type DistributeFunctions<$Procedure, $Method> = $Procedure extends Any
     ? ExtractMethod<$Procedure> extends $Method
-        ? FetchFunction<ExtractType<$Procedure>, ExtractReturnType<$Procedure>>
-        : never
+    ? FetchFunction<ExtractType<$Procedure>, ExtractReturnType<$Procedure>>
+    : never
     : never;
+
+type ResolveSingleProcedure<$Procedure> =
+    $Procedure extends Procedure<Params<Any, Any, Any, infer $Output>>
+    ? FetchFunction<'NOTHING', $Output>
+    : $Procedure extends TypedProcedure<Params<infer $Input, Any, Any, infer $Output>>
+    ? FetchFunction<$Input, $Output>
+    : never;
+
+type ResolveProcedureArray<$ProcedureArray extends Any[]> = {
+    [MethodKey in DistributeMethods<$ProcedureArray[number]>]: DistributeFunctions<$ProcedureArray[number], MethodKey>;
+} & TransformNever<
+    FinalObjectBuilder<NonMethods<DistributeNonMethods<$ProcedureArray[number]>>>,
+    Record<string, never>
+>;
 
 /**
  * Transform router endpoints object into object of fetch functions, with correspoding parameter types and return types
  * @param $RouterEndpoints Router endpoint's object
  */
-type FinalObjectBuilder<$RouterEnpoints> = $RouterEnpoints extends object
+type FinalObjectBuilder<$RouterEndpoints> = $RouterEndpoints extends object
     ? {
-          [$RouterEndpointKey in keyof $RouterEnpoints]: $RouterEnpoints[$RouterEndpointKey] extends Procedure<
-              Params<Any, Any, Any, infer Output>
-          >
-              ? FetchFunction<'NOTHING', Output>
-              : $RouterEnpoints[$RouterEndpointKey] extends TypedProcedure<Params<infer T, Any, Any, infer Output>>
-                ? FetchFunction<T, Output>
-                : $RouterEnpoints[$RouterEndpointKey] extends Array<Any>
-                  ? {
-                        [Key in DistributeMethods<$RouterEnpoints[$RouterEndpointKey][number]>]: DistributeFunctions<
-                            $RouterEnpoints[$RouterEndpointKey][number],
-                            Key
-                        >;
-                    } & TransformNever<
-                        FinalObjectBuilder<
-                            NonMethods<DistributeNonMethods<$RouterEnpoints[$RouterEndpointKey][number]>>
-                        >,
-                        Record<string, never>
-                    >
-                  : FinalObjectBuilder<$RouterEnpoints[$RouterEndpointKey]>;
-      }
-    : $RouterEnpoints;
+        [Key in keyof $RouterEndpoints]: $RouterEndpoints[Key] extends Procedure<any> | TypedProcedure<any>
+        ? ResolveSingleProcedure<$RouterEndpoints[Key]>
+        : $RouterEndpoints[Key] extends Any[]
+        ? ResolveProcedureArray<$RouterEndpoints[Key]>
+        : FinalObjectBuilder<$RouterEndpoints[Key]>;
+    }
+    : never;
 
-//    [Key in DistributeMethods<$RouterEnpoints[K][number]>]: DistributeFunctions<
-//    $RouterEnpoints[K][number],
-//    Key
-//    >;
+type FormActionWrapper<T> = T extends (event: RequestEvent, data: any) => Promise<infer R>
+    ? (event: RequestEvent) => Promise<R>
+    : never;
+
+type CreateActionsFromSSR<T> = {
+    [K in keyof T]: T[K] extends (event: RequestEvent, data: any) => Promise<any>
+    ? FormActionWrapper<T[K]>
+    : T[K] extends object
+    ? CreateActionsFromSSR<T[K]>
+    : never;
+};
 
 /**
  * APIServer class, that get's $Router type
@@ -120,6 +124,7 @@ export class APIServer<$Router extends Router<RouterObject>> {
     private apiPath: string;
     private createContext: CreateContext;
     public ssr!: FinalObjectBuilder<$Router['endpoints']>;
+    public actions!: CreateActionsFromSSR<FinalObjectBuilder<$Router['endpoints']>>;
 
     /**
      * Constrcutor
@@ -131,6 +136,7 @@ export class APIServer<$Router extends Router<RouterObject>> {
         this.createContext = config.context;
 
         this.generateSSR();
+        this.generateActions();
     }
 
     /**
@@ -623,6 +629,27 @@ export class APIServer<$Router extends Router<RouterObject>> {
         }
 
         return newObj as HydrateData<$Router>;
+    }
+
+    private createActions(ssrObject: Any) {
+        const result: Any = {};
+        for (const key in ssrObject) {
+            const value = ssrObject[key];
+            if (typeof value === 'function') {
+                result[key] = async (event: RequestEvent) => {
+                    const form = await event.request.formData();
+                    return await value(event, form);
+                };
+            } else if (typeof value === 'object' && value !== null) {
+                result[key] = this.createActions(value);
+            }
+        }
+
+        return result;
+    }
+
+    private generateActions() {
+        this.actions = this.createActions(this.ssr);
     }
 }
 

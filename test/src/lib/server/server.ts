@@ -5,5 +5,5 @@ import { r } from './routes';
 export const Server = new APIServer({
     router: r,
     path: '/api',
-    context
+    context,
 });

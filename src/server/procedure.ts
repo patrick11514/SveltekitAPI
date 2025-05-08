@@ -174,10 +174,10 @@ export type Method = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
  */
 export type ExtractParams<$Procedure extends Procedure<BaseParams> | TypedProcedure<BaseParams>> =
     $Procedure extends Procedure<infer $Params>
-        ? $Params
-        : $Procedure extends TypedProcedure<infer $Params>
-          ? $Params
-          : never;
+    ? $Params
+    : $Procedure extends TypedProcedure<infer $Params>
+    ? $Params
+    : never;
 
 /**
  * @internal
@@ -234,11 +234,11 @@ export class Procedure<$Params extends BaseParams> {
      * @throws Error if method of Procedure is GET
      * @returns Typed procedure with same params, same middleware and specific schema of data
      */
-    public input<T>(schema: z.ZodType<T>) {
+    public input<$Input>(schema: z.ZodType<$Input>) {
         if (this.method === 'GET') {
             throw new Error('GET method does not support input');
         }
-        return new TypedProcedure<Params<T, $Params['ctx'], $Params['method'], $Params['output']>>(
+        return new TypedProcedure<Params<$Input, $Params['ctx'], $Params['method'], $Params['output']>>(
             this.method,
             this.middlewares as Any,
             schema,
@@ -259,11 +259,11 @@ export class Procedure<$Params extends BaseParams> {
 /**
  * Procedure class for methods other that GET
  */
-export class TypedProcedure<C extends BaseParams> {
-    public inputSchema!: C['schema'];
+export class TypedProcedure<$Params extends BaseParams> {
+    public inputSchema!: $Params['schema'];
     public method: Method;
-    public callback!: CallBackFunction<C, C['output']>;
-    public middlewares: MiddleWareFunction<C, Any>[] = [];
+    public callback!: CallBackFunction<$Params, $Params['output']>;
+    public middlewares: MiddleWareFunction<$Params, Any>[] = [];
 
     /**
      * Constructor
@@ -271,7 +271,7 @@ export class TypedProcedure<C extends BaseParams> {
      * @param appliedMiddlewares Middlewares of procedure
      * @param schema Schema of input
      */
-    constructor(method: Method, appliedMiddlewares: MiddleWareFunction<C, Any>[], schema: C['schema']) {
+    constructor(method: Method, appliedMiddlewares: MiddleWareFunction<$Params, Any>[], schema: $Params['schema']) {
         this.method = method;
         this.middlewares = appliedMiddlewares;
         this.inputSchema = schema;
@@ -282,8 +282,8 @@ export class TypedProcedure<C extends BaseParams> {
      * @param callback Callback called when got Request on endpoint
      * @returns Typed this with correct Return Type
      */
-    public query<O>(callback: CallBackFunction<C, O>) {
+    public query<$Output>(callback: CallBackFunction<$Params, $Output>) {
         this.callback = callback;
-        return this as unknown as TypedProcedure<MergeOutputParams<C, O>>;
+        return this as unknown as TypedProcedure<MergeOutputParams<$Params, $Output>>;
     }
 }

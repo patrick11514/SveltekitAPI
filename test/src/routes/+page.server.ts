@@ -1,5 +1,5 @@
 import { Server } from '$/lib/server/server';
-import type { PageServerLoad } from './$types';
+import type { Actions, PageServerLoad } from './$types';
 
 export const load = (async (ev) => {
     const formData = new FormData();
@@ -20,6 +20,8 @@ export const load = (async (ev) => {
         path: '/'
     });
 
+    Server.ssr.formData;
+
     return {
         serverData: [
             await Server.ssr.testGET(ev),
@@ -31,3 +33,7 @@ export const load = (async (ev) => {
         ]
     };
 }) satisfies PageServerLoad;
+
+export const actions = {
+    default: Server.actions.form
+} satisfies Actions;

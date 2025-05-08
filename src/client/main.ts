@@ -14,12 +14,12 @@ import type {
 
 /**
  * Creates a type for fetch function that fetches data from API
- * @param $DataType type of input data
+ * @param $InputType type of input data
  * @param $ReturnType return type of fetch function
  */
-type FetchFunction<$DataType, $ReturnType> = $DataType extends 'NOTHING'
+type FetchFunction<$InputType, $ReturnType> = $InputType extends 'NOTHING'
     ? () => Promise<$ReturnType>
-    : (data: $DataType) => Promise<$ReturnType>;
+    : (data: $InputType) => Promise<$ReturnType>;
 
 /**
  * Extract DataType and Return Type from procedure, if procedure's method and Method doesn't match, it returns never, otherwise it get's Function with DataType and ReturnType
@@ -28,38 +28,43 @@ type FetchFunction<$DataType, $ReturnType> = $DataType extends 'NOTHING'
  */
 type DistributeFunctions<$Procedure, $Method> = $Procedure extends Any
     ? ExtractMethod<$Procedure> extends $Method
-        ? FetchFunction<ExtractType<$Procedure>, ExtractReturnType<$Procedure>>
-        : never
+    ? FetchFunction<ExtractType<$Procedure>, ExtractReturnType<$Procedure>>
+    : never
     : never;
+
+type DistributeProcedureFunctions<$Procedure, $HttpMethod> = $Procedure extends Any
+    ? ExtractMethod<$Procedure> extends $HttpMethod
+    ? FetchFunction<ExtractType<$Procedure>, ExtractReturnType<$Procedure>>
+    : never
+    : never;
+
+type ResolveProcedureArray<$ProcedureArray extends Any[]> = {
+    [HttpMethod in DistributeMethods<$ProcedureArray[number]>]: DistributeProcedureFunctions<
+        $ProcedureArray[number],
+        HttpMethod
+    >;
+} & TransformNever<
+    FinalObjectBuilder<NonMethods<DistributeNonMethods<$ProcedureArray[number]>>>,
+    Record<string, never>
+>;
 
 /**
  * Transform router endpoints object into object of fetch functions, with correspoding parameter types and return types
  * @param $RouterEndpoints Router endpoint's object
  */
-type FinalObjectBuilder<$RouterEnpoints> = $RouterEnpoints extends object
+type FinalObjectBuilder<$RouterEndpoints> = $RouterEndpoints extends object
     ? {
-          [$RouterEndpointKey in keyof $RouterEnpoints]: $RouterEnpoints[$RouterEndpointKey] extends Procedure<
-              Params<Any, Any, Any, infer $Output>
-          >
-              ? FetchFunction<'NOTHING', $Output>
-              : $RouterEnpoints[$RouterEndpointKey] extends TypedProcedure<
-                      Params<infer $Input, Any, Any, infer $Output>
-                  >
-                ? FetchFunction<$Input, $Output>
-                : $RouterEnpoints[$RouterEndpointKey] extends Array<Any>
-                  ? {
-                        [$Method in DistributeMethods<
-                            $RouterEnpoints[$RouterEndpointKey][number]
-                        >]: DistributeFunctions<$RouterEnpoints[$RouterEndpointKey][number], $Method>;
-                    } & TransformNever<
-                        FinalObjectBuilder<
-                            NonMethods<DistributeNonMethods<$RouterEnpoints[$RouterEndpointKey][number]>>
-                        >,
-                        Record<string, never>
-                    >
-                  : FinalObjectBuilder<$RouterEnpoints[$RouterEndpointKey]>;
-      }
-    : $RouterEnpoints;
+        [RouteKey in keyof $RouterEndpoints]: $RouterEndpoints[RouteKey] extends Procedure<
+            Params<Any, Any, Any, infer $OutputType>
+        >
+        ? FetchFunction<'NOTHING', $OutputType>
+        : $RouterEndpoints[RouteKey] extends TypedProcedure<Params<infer $InputType, Any, Any, infer $OutputType>>
+        ? FetchFunction<$InputType, $OutputType>
+        : $RouterEndpoints[RouteKey] extends Array<Any>
+        ? ResolveProcedureArray<$RouterEndpoints[RouteKey]>
+        : FinalObjectBuilder<$RouterEndpoints[RouteKey]>;
+    }
+    : never;
 
 /**
  * Type of API Client for fetching API
@@ -85,8 +90,8 @@ const fetchFunction = (path: string, method: string) => {
                     ? data instanceof FormData
                         ? data
                         : typeof data === 'object'
-                          ? JSON.stringify(data)
-                          : data
+                            ? JSON.stringify(data)
+                            : data
                     : undefined,
         });
 
@@ -110,7 +115,7 @@ const fetchFunction = (path: string, method: string) => {
 export const createAPIClient = <R extends Router<RouterObject>>(basePath: string) => {
     return {
         basePath,
-        hydrateFromServer: function (data: HydrateData<R>) {
+        hydrateFromServer: function(data: HydrateData<R>) {
             const toDo: {
                 fullPath: string;
                 key: string;
