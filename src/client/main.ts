@@ -1,5 +1,5 @@
 import type { Router, RouterObject } from '../router.js';
-import { Params, Procedure, TypedProcedure } from '../server/procedure.js';
+import { Procedure, TypedProcedure } from '../server/procedure.js';
 import type {
     DistributeMethods,
     DistributeNonMethods,
@@ -42,15 +42,11 @@ type ResolveProcedureArray<$ProcedureArray extends any[]> = {
  */
 type FinalObjectBuilder<$RouterEndpoints> = $RouterEndpoints extends object
     ? {
-          [RouteKey in keyof $RouterEndpoints]: $RouterEndpoints[RouteKey] extends Procedure<
-              Params<any, any, any, infer $OutputType>
-          >
-              ? FetchFunction<'NOTHING', $OutputType>
-              : $RouterEndpoints[RouteKey] extends TypedProcedure<Params<infer $InputType, any, any, infer $OutputType>>
-                ? FetchFunction<$InputType, $OutputType>
-                : $RouterEndpoints[RouteKey] extends Array<any>
-                  ? ResolveProcedureArray<$RouterEndpoints[RouteKey]>
-                  : FinalObjectBuilder<$RouterEndpoints[RouteKey]>;
+          [RouteKey in keyof $RouterEndpoints]: $RouterEndpoints[RouteKey] extends Procedure<any> | TypedProcedure<any>
+              ? FetchFunction<ExtractType<$RouterEndpoints[RouteKey]>, ExtractReturnType<$RouterEndpoints[RouteKey]>>
+              : $RouterEndpoints[RouteKey] extends any[]
+                ? ResolveProcedureArray<$RouterEndpoints[RouteKey]>
+                : FinalObjectBuilder<$RouterEndpoints[RouteKey]>;
       }
     : never;
 
