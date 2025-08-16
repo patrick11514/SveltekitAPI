@@ -1,7 +1,6 @@
 import type { Router, RouterObject } from '../router.js';
 import { Params, Procedure, TypedProcedure } from '../server/procedure.js';
 import type {
-    Any,
     DistributeMethods,
     DistributeNonMethods,
     ExtractMethod,
@@ -21,24 +20,13 @@ type FetchFunction<$InputType, $ReturnType> = $InputType extends 'NOTHING'
     ? () => Promise<$ReturnType>
     : (data: $InputType) => Promise<$ReturnType>;
 
-/**
- * Extract DataType and Return Type from procedure, if procedure's method and Method doesn't match, it returns never, otherwise it get's Function with DataType and ReturnType
- * @param $Procedure Single procedure, or union of procedures
- * @param $Method Method, which selects correct one from union
- */
-type DistributeFunctions<$Procedure, $Method> = $Procedure extends Any
-    ? ExtractMethod<$Procedure> extends $Method
-    ? FetchFunction<ExtractType<$Procedure>, ExtractReturnType<$Procedure>>
-    : never
-    : never;
-
-type DistributeProcedureFunctions<$Procedure, $HttpMethod> = $Procedure extends Any
+type DistributeProcedureFunctions<$Procedure, $HttpMethod> = $Procedure extends any
     ? ExtractMethod<$Procedure> extends $HttpMethod
-    ? FetchFunction<ExtractType<$Procedure>, ExtractReturnType<$Procedure>>
-    : never
+        ? FetchFunction<ExtractType<$Procedure>, ExtractReturnType<$Procedure>>
+        : never
     : never;
 
-type ResolveProcedureArray<$ProcedureArray extends Any[]> = {
+type ResolveProcedureArray<$ProcedureArray extends any[]> = {
     [HttpMethod in DistributeMethods<$ProcedureArray[number]>]: DistributeProcedureFunctions<
         $ProcedureArray[number],
         HttpMethod
@@ -54,16 +42,16 @@ type ResolveProcedureArray<$ProcedureArray extends Any[]> = {
  */
 type FinalObjectBuilder<$RouterEndpoints> = $RouterEndpoints extends object
     ? {
-        [RouteKey in keyof $RouterEndpoints]: $RouterEndpoints[RouteKey] extends Procedure<
-            Params<Any, Any, Any, infer $OutputType>
-        >
-        ? FetchFunction<'NOTHING', $OutputType>
-        : $RouterEndpoints[RouteKey] extends TypedProcedure<Params<infer $InputType, Any, Any, infer $OutputType>>
-        ? FetchFunction<$InputType, $OutputType>
-        : $RouterEndpoints[RouteKey] extends Array<Any>
-        ? ResolveProcedureArray<$RouterEndpoints[RouteKey]>
-        : FinalObjectBuilder<$RouterEndpoints[RouteKey]>;
-    }
+          [RouteKey in keyof $RouterEndpoints]: $RouterEndpoints[RouteKey] extends Procedure<
+              Params<any, any, any, infer $OutputType>
+          >
+              ? FetchFunction<'NOTHING', $OutputType>
+              : $RouterEndpoints[RouteKey] extends TypedProcedure<Params<infer $InputType, any, any, infer $OutputType>>
+                ? FetchFunction<$InputType, $OutputType>
+                : $RouterEndpoints[RouteKey] extends Array<any>
+                  ? ResolveProcedureArray<$RouterEndpoints[RouteKey]>
+                  : FinalObjectBuilder<$RouterEndpoints[RouteKey]>;
+      }
     : never;
 
 /**
@@ -82,7 +70,7 @@ type APIClient<$Router extends Router<RouterObject>> = {
  * @returns Fetch function with data param
  */
 const fetchFunction = (path: string, method: string) => {
-    return async (data?: Any) => {
+    return async (data?: any) => {
         const request = await fetch(path, {
             method,
             body:
@@ -90,8 +78,8 @@ const fetchFunction = (path: string, method: string) => {
                     ? data instanceof FormData
                         ? data
                         : typeof data === 'object'
-                            ? JSON.stringify(data)
-                            : data
+                          ? JSON.stringify(data)
+                          : data
                     : undefined,
         });
 
@@ -115,12 +103,12 @@ const fetchFunction = (path: string, method: string) => {
 export const createAPIClient = <R extends Router<RouterObject>>(basePath: string) => {
     return {
         basePath,
-        hydrateFromServer: function(data: HydrateData<R>) {
+        hydrateFromServer: function (data: HydrateData<R>) {
             const toDo: {
                 fullPath: string;
                 key: string;
-                parent: Any;
-                obj: Any;
+                parent: any;
+                obj: any;
             }[] = Object.keys(data).map((key) => {
                 return {
                     fullPath: '/' + key,

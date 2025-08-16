@@ -9,8 +9,8 @@
         "build": "mkdir -p build && tsc",
         "clear": "rm -rf build",
         "check": "tsc --noEmit",
-        "format": "prettier --write .",
-        "lint": "prettier --check . && eslint .",
+        "format": "prettier --write src",
+        "lint": "prettier --check src && eslint src",
         "publ": "npm publish --access public",
         "prepare": "husky"
     },
