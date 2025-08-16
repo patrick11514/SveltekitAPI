@@ -10,14 +10,14 @@ export type Arrayable<T> = T | T[];
 
 /**
  * @internal
- * Awaitabe type (could return Promis, but don't)
+ * Awaitable type (could return Promise, but don't)
  */
 export type Awaitable<T> = T | Promise<T>;
 
 /**
  * Extracts Return type from Function
  */
-export type AsyncReturnType<$Function extends (...args: any) => any> =
+export type AsyncReturnType<$Function extends (...args: unknown[]) => unknown> =
     ReturnType<$Function> extends Promise<infer $ReturnType> ? $ReturnType : ReturnType<$Function>;
 
 /**
@@ -47,12 +47,12 @@ export type ErrorInputResponse = {
  * @internal
  * If $BaseArray is array, it replaces array to array of $NewType, otherwise it keeps $BaseArray type
  */
-export type ReplaceArrayItemsWith<$BaseArray, $NewType> = $BaseArray extends Array<any> ? $NewType[] : $BaseArray;
+export type ReplaceArrayItemsWith<$BaseArray, $NewType> = $BaseArray extends unknown[] ? $NewType[] : $BaseArray;
 /**
  * @internal
  * If $BaseArray is array, it replaces array to $NewArray, otherwise it keeps type of $BaseArray
  */
-export type ReplaceArrayWith<$BaseArray, $NewArray> = $BaseArray extends Array<any> ? $NewArray : $BaseArray;
+export type ReplaceArrayWith<$BaseArray, $NewArray> = $BaseArray extends unknown[] ? $NewArray : $BaseArray;
 
 /**
  * @internal
@@ -104,7 +104,7 @@ export type MethodsToRoot<$RouterEndpoints> = $RouterEndpoints extends object
               ? $Method
               : $RouterEndpoints[$Key] extends TypedProcedure<Params<any, any, infer $Method, any>>
                 ? $Method
-                : $RouterEndpoints[$Key] extends Array<any>
+                : $RouterEndpoints[$Key] extends any[]
                   ? DistributeMethods<$RouterEndpoints[$Key][number]>[]
                   : MethodsToRoot<$RouterEndpoints[$Key]>;
       }

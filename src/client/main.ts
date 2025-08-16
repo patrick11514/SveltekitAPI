@@ -70,17 +70,21 @@ type APIClient<$Router extends Router<RouterObject>> = {
  * @returns Fetch function with data param
  */
 const fetchFunction = (path: string, method: string) => {
-    return async (data?: any) => {
+    return async (data?: unknown) => {
+        let body: BodyInit | undefined;
+        if (data !== undefined) {
+            if (data instanceof FormData) {
+                body = data;
+            } else if (typeof data === 'object') {
+                body = JSON.stringify(data);
+            } else {
+                body = data as unknown as BodyInit;
+            }
+        }
+
         const request = await fetch(path, {
             method,
-            body:
-                data !== undefined
-                    ? data instanceof FormData
-                        ? data
-                        : typeof data === 'object'
-                          ? JSON.stringify(data)
-                          : data
-                    : undefined,
+            body,
         });
 
         const text = await request.text();
@@ -89,7 +93,7 @@ const fetchFunction = (path: string, method: string) => {
             const json = JSON.parse(text);
 
             return json;
-        } catch (_) {
+        } catch (_err) {
             return text;
         }
     };
@@ -107,6 +111,7 @@ export const createAPIClient = <R extends Router<RouterObject>>(basePath: string
             const toDo: {
                 fullPath: string;
                 key: string;
+                // using any here is intentional: we mutate a dynamic tree to attach functions
                 parent: any;
                 obj: any;
             }[] = Object.keys(data).map((key) => {
@@ -118,27 +123,27 @@ export const createAPIClient = <R extends Router<RouterObject>>(basePath: string
                 };
             });
 
-            while (toDo.length != 0) {
+            while (toDo.length !== 0) {
                 const top = toDo.pop()!;
-                const data = top.obj[top.key];
+                const node = top.obj[top.key];
 
-                if (typeof data === 'string') {
-                    top.parent[top.key] = fetchFunction(this.basePath + top.fullPath, data);
+                if (typeof node === 'string') {
+                    top.parent[top.key] = fetchFunction(this.basePath + top.fullPath, node);
 
                     continue;
                 }
 
-                if (Array.isArray(data)) {
+                if (Array.isArray(node)) {
                     if (!(top.key in top.parent)) {
                         top.parent[top.key] = {};
                     }
 
                     const procedures: string[] = [];
-                    let subRoute = {};
+                    let subRoute: Record<string, unknown> = {};
 
-                    for (const item of data) {
+                    for (const item of node) {
                         if (typeof item === 'object') {
-                            subRoute = item;
+                            subRoute = item as Record<string, unknown>;
                         } else {
                             procedures.push(item);
                         }
@@ -164,12 +169,12 @@ export const createAPIClient = <R extends Router<RouterObject>>(basePath: string
                 top.parent[top.key] = {};
 
                 toDo.push(
-                    ...Object.keys(data).map((key) => {
+                    ...Object.keys(node as Record<string, unknown>).map((key) => {
                         return {
                             fullPath: top.fullPath + '/' + key,
                             key,
                             parent: top.parent[top.key],
-                            obj: data,
+                            obj: node,
                         };
                     }),
                 );

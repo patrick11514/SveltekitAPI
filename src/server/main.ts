@@ -146,7 +146,7 @@ export class APIServer<$Router extends Router<RouterObject>> {
      * @param method Method
      * @returns Output of mainHandler
      */
-    private async handleSSR(event: RequestEvent, data: any, apiPath: string, method: Method) {
+    private async handleSSR(event: RequestEvent, data: unknown, apiPath: string, method: Method) {
         if (!this.router.includes(apiPath)) {
             return {
                 status: false,
@@ -187,7 +187,7 @@ export class APIServer<$Router extends Router<RouterObject>> {
 
         if (procedure instanceof TypedProcedure) {
             try {
-                if (procedure.inputSchema == FormDataInput) {
+                if (procedure.inputSchema === FormDataInput) {
                     input = data;
                 } else {
                     const parsed = procedure.inputSchema.safeParse(data);
@@ -240,12 +240,12 @@ export class APIServer<$Router extends Router<RouterObject>> {
         });
 
         const createWrapper = (method: Method, path: string) => {
-            return (event: RequestEvent, data: any) => {
+            return (event: RequestEvent, data: unknown) => {
                 return this.handleSSR(event, data, path, method);
             };
         };
 
-        while (toDone.length != 0) {
+        while (toDone.length !== 0) {
             const top = toDone.pop()!;
             const data = top.obj[top.key];
 
@@ -257,9 +257,9 @@ export class APIServer<$Router extends Router<RouterObject>> {
             if (Array.isArray(data)) {
                 top.parent[top.key] = {};
 
-                //separate procedures and subroutes
+                // separate procedures and subroutes
                 const procedures: (Procedure<BaseParams> | TypedProcedure<BaseParams>)[] = [];
-                //merge objects, last object keys are in priority
+                // merge objects, last object keys are in priority
                 let subRouter: RouterObject = {};
 
                 for (const item of data) {
@@ -274,7 +274,7 @@ export class APIServer<$Router extends Router<RouterObject>> {
                     top.parent[top.key][procedure.method] = createWrapper(procedure.method, top.fullPath);
                 });
 
-                //add subroutes
+                // add subroutes
 
                 toDone.push(
                     ...Object.keys(subRouter).map((key) => {
@@ -461,14 +461,14 @@ export class APIServer<$Router extends Router<RouterObject>> {
 
         if (procedure instanceof TypedProcedure) {
             try {
-                if (procedure.inputSchema == FormDataInput) {
+                if (procedure.inputSchema === FormDataInput) {
                     input = await request.formData();
                 } else {
                     let data: string | object = await request.text();
 
                     try {
                         data = JSON.parse(data);
-                    } catch (_) {
+                    } catch (_err) {
                         /* empty */
                     }
 
@@ -554,7 +554,7 @@ export class APIServer<$Router extends Router<RouterObject>> {
             };
         });
 
-        while (toDone.length != 0) {
+        while (toDone.length !== 0) {
             const top = toDone.pop()!;
             const data = top.obj[top.key];
 
@@ -564,9 +564,9 @@ export class APIServer<$Router extends Router<RouterObject>> {
             }
 
             if (Array.isArray(data)) {
-                //separate procedures and subroutes
+                // separate procedures and subroutes
                 const procedures: (Procedure<BaseParams> | TypedProcedure<BaseParams>)[] = [];
-                //merge objects, last object keys are in priority
+                // merge objects, last object keys are in priority
                 let subRouter: RouterObject = {};
                 let subRouterSet = false;
 
@@ -582,7 +582,7 @@ export class APIServer<$Router extends Router<RouterObject>> {
                     }
                 }
 
-                let methodArray = [] as (HydrateDataBuilder | Method)[];
+                let methodArray: (HydrateDataBuilder | Method)[] = [];
 
                 if (Object.keys(subRouter).length > 0) {
                     const object = {} as HydrateDataBuilder;
