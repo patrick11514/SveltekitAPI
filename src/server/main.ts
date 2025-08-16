@@ -30,9 +30,28 @@ import {
 /**
  * Zod custom type, that checks, if input is FormData
  */
-export const FormDataInput = z.custom<FormData>((data) => {
-    return data instanceof FormData;
-});
+export const AnyFormDataInput = z.custom<FormData>((data) => data instanceof FormData);
+
+/**
+ * Back-compat alias: permissive FormData validator (no schema)
+ * @deprecated Use AnyFormDataInput or createFormDataInput(schema)
+ */
+export const FormDataInput = AnyFormDataInput;
+
+/**
+ * Zod custom type factory: validates FormData by provided schema
+ */
+export const createFormDataInput = <$Data>(schema: z.ZodType<$Data>) =>
+    z.custom<FormData>((data) => {
+        if (!(data instanceof FormData)) return false;
+        const object = Object.fromEntries(data.entries());
+        const parsed = schema.safeParse(object);
+        if (!parsed.success) {
+            console.error('FormDataInput validation failed:', parsed.error);
+            return false;
+        }
+        return true;
+    });
 
 /**
  * @internal
@@ -187,7 +206,7 @@ export class APIServer<$Router extends Router<RouterObject>> {
 
         if (procedure instanceof TypedProcedure) {
             try {
-                if (procedure.inputSchema === FormDataInput) {
+                if (procedure.inputSchema === AnyFormDataInput) {
                     input = data;
                 } else {
                     const parsed = procedure.inputSchema.safeParse(data);
@@ -461,7 +480,7 @@ export class APIServer<$Router extends Router<RouterObject>> {
 
         if (procedure instanceof TypedProcedure) {
             try {
-                if (procedure.inputSchema === FormDataInput) {
+                if (procedure.inputSchema === AnyFormDataInput) {
                     input = await request.formData();
                 } else {
                     let data: string | object = await request.text();
