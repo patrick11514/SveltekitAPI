@@ -42,6 +42,9 @@ jobs:
     deploy:
         name: Deploy
         runs-on: ubuntu-latest
+        permissions:
+            contents: read
+            id-token: write
         needs: lint
         if: github.ref == 'refs/heads/main'
         steps:
