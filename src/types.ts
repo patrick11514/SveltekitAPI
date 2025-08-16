@@ -4,28 +4,35 @@ import { Method, Params, Procedure, TypedProcedure } from './server/procedure.js
 
 /**
  * @internal
- * Custom Any
- */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type Any = any;
-
-/**
- * @internal
  * Arrayable type (could be array, but don't)
  */
 export type Arrayable<T> = T | T[];
 
 /**
  * @internal
- * Awaitabe type (could return Promis, but don't)
+ * Awaitable type (could return Promise, but don't)
  */
 export type Awaitable<T> = T | Promise<T>;
 
 /**
  * Extracts Return type from Function
  */
-export type AsyncReturnType<$Function extends (...args: Any) => Any> =
+export type AsyncReturnType<$Function extends (...args: unknown[]) => unknown> =
     ReturnType<$Function> extends Promise<infer $ReturnType> ? $ReturnType : ReturnType<$Function>;
+
+/**
+ * @internal
+ * Helpers to infer parts of Procedure/TypedProcedure once and reuse
+ */
+type ProcParams<$T> = $T extends Procedure<infer $P> ? $P : $T extends TypedProcedure<infer $P> ? $P : never;
+type ProcMethod<$T> = ProcParams<$T> extends Params<any, any, infer $M, any> ? $M : never;
+type ProcInput<$T> =
+    $T extends Procedure<Params<any, any, any, any>>
+        ? 'NOTHING'
+        : ProcParams<$T> extends Params<infer $I, any, any, any>
+          ? $I
+          : never;
+type ProcOutput<$T> = ProcParams<$T> extends Params<any, any, any, infer $O> ? $O : never;
 
 /**
  * CreateContext Method
@@ -54,29 +61,24 @@ export type ErrorInputResponse = {
  * @internal
  * If $BaseArray is array, it replaces array to array of $NewType, otherwise it keeps $BaseArray type
  */
-export type ReplaceArrayItemsWith<$BaseArray, $NewType> = $BaseArray extends Array<Any> ? $NewType[] : $BaseArray;
+export type ReplaceArrayItemsWith<$BaseArray, $NewType> = $BaseArray extends unknown[] ? $NewType[] : $BaseArray;
 /**
  * @internal
  * If $BaseArray is array, it replaces array to $NewArray, otherwise it keeps type of $BaseArray
  */
-export type ReplaceArrayWith<$BaseArray, $NewArray> = $BaseArray extends Array<Any> ? $NewArray : $BaseArray;
+export type ReplaceArrayWith<$BaseArray, $NewArray> = $BaseArray extends unknown[] ? $NewArray : $BaseArray;
 
 /**
  * @internal
  * Extracts method from $Procedure
  */
-export type ExtractMethod<$Procedure> =
-    $Procedure extends Procedure<Params<Any, Any, infer $Method, Any>>
-        ? $Method
-        : $Procedure extends TypedProcedure<Params<Any, Any, infer $Method, Any>>
-          ? $Method
-          : never;
+export type ExtractMethod<$Procedure> = ProcMethod<$Procedure>;
 
 /**
  * @internal
  * Tries to extract method from procedure, or union of procedures
  */
-export type DistributeMethods<$PossibleProcedure> = $PossibleProcedure extends Any
+export type DistributeMethods<$PossibleProcedure> = $PossibleProcedure extends any
     ? ExtractMethod<$PossibleProcedure>
     : never;
 
@@ -84,18 +86,13 @@ export type DistributeMethods<$PossibleProcedure> = $PossibleProcedure extends A
  * @internal
  * Extracts method from $Procedure
  */
-export type ExtractNonMethod<$Procedure> =
-    $Procedure extends Procedure<Params<Any, Any, Any, Any>>
-        ? never
-        : $Procedure extends TypedProcedure<Params<Any, Any, Any, Any>>
-          ? never
-          : $Procedure;
+export type ExtractNonMethod<$Procedure> = ProcParams<$Procedure> extends never ? $Procedure : never;
 
 /**
  * @internal
  * Tries to extract method from procedure, or union of procedures and if it was not possible, return that type
  */
-export type DistributeNonMethods<$PossibleProcedure> = $PossibleProcedure extends Any
+export type DistributeNonMethods<$PossibleProcedure> = $PossibleProcedure extends any
     ? ExtractNonMethod<$PossibleProcedure>
     : never;
 
@@ -105,15 +102,11 @@ export type DistributeNonMethods<$PossibleProcedure> = $PossibleProcedure extend
  */
 export type MethodsToRoot<$RouterEndpoints> = $RouterEndpoints extends object
     ? {
-          [$Key in keyof $RouterEndpoints]: $RouterEndpoints[$Key] extends Procedure<
-              Params<Any, Any, infer $Method, Any>
-          >
-              ? $Method
-              : $RouterEndpoints[$Key] extends TypedProcedure<Params<Any, Any, infer $Method, Any>>
-                ? $Method
-                : $RouterEndpoints[$Key] extends Array<Any>
-                  ? DistributeMethods<$RouterEndpoints[$Key][number]>[]
-                  : MethodsToRoot<$RouterEndpoints[$Key]>;
+          [$Key in keyof $RouterEndpoints]: $RouterEndpoints[$Key] extends Procedure<any> | TypedProcedure<any>
+              ? ProcMethod<$RouterEndpoints[$Key]>
+              : $RouterEndpoints[$Key] extends any[]
+                ? DistributeMethods<$RouterEndpoints[$Key][number]>[]
+                : MethodsToRoot<$RouterEndpoints[$Key]>;
       }
     : $RouterEndpoints;
 
@@ -126,36 +119,26 @@ export type HydrateDataBuilder = { [key: string]: HydrateDataBuilder | Method | 
  * @internal
  * Type of HydrateData
  */
-export type HydrateData<$Router extends Router<Any>> = MethodsToRoot<$Router['endpoints']>;
+export type HydrateData<$Router extends Router<any>> = MethodsToRoot<$Router['endpoints']>;
 
-type IfAny<$Type, $True, $False> = 0 extends 1 & $Type ? $True : $False;
+type Ifany<$Type, $True, $False> = 0 extends 1 & $Type ? $True : $False;
 /**
  * @internal
  * Checks if $Type is any
  */
-export type IsAny<$Type> = IfAny<$Type, true, false>;
+export type Isany<$Type> = Ifany<$Type, true, false>;
 
 /**
  * @internal
  * Extracts type from procedure, otherwise return 'Nothing'
  */
-export type ExtractType<$Procedure> =
-    $Procedure extends Procedure<Params<Any, Any, Any, Any>>
-        ? 'NOTHING'
-        : $Procedure extends TypedProcedure<Params<infer $Type, Any, Any, Any>>
-          ? $Type
-          : never;
+export type ExtractType<$Procedure> = ProcInput<$Procedure>;
 
 /**
  * @internal
  * Extracts Return type of Procedure
  */
-export type ExtractReturnType<$Procedure> =
-    $Procedure extends Procedure<Params<Any, Any, Any, infer $Output>>
-        ? $Output
-        : $Procedure extends TypedProcedure<Params<Any, Any, Any, infer $Output>>
-          ? $Output
-          : never;
+export type ExtractReturnType<$Procedure> = ProcOutput<$Procedure>;
 
 /**
  * Extract non methods from $PossiblyMethod

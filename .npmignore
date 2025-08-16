@@ -1,8 +1,9 @@
 #dotfiles
 .prettierrc
 .eslintignore
-.eslintrc.cjs
 .vscode
+.husky
+.github
 
 #other files
 src
@@ -10,4 +11,6 @@ tsconfig.json
 pnpm-lock.yaml
 assets
 test
+pnpm-workspace.yaml
+eslint.config.mjs
 pnpm-workspace.yaml

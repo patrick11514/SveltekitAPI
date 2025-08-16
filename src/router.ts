@@ -1,5 +1,5 @@
 import { Procedure, TypedProcedure, type BaseParams, type Method, type Params } from './server/procedure.js';
-import type { Any, Arrayable } from './types.js';
+import type { Arrayable } from './types.js';
 
 /**
  * @internal
@@ -8,7 +8,7 @@ import type { Any, Arrayable } from './types.js';
 export type RouterObject = {
     [$Key: string]:
         | RouterObject
-        | Arrayable<Procedure<Params<Any, Any, Any, Any>> | TypedProcedure<Params<Any, Any, Any, Any>> | RouterObject>;
+        | Arrayable<Procedure<Params<any, any, any, any>> | TypedProcedure<Params<any, any, any, any>> | RouterObject>;
 };
 
 /**
@@ -16,6 +16,7 @@ export type RouterObject = {
  */
 export class Router<$Router extends RouterObject> {
     public endpoints: $Router;
+    // map of path -> supported methods -> procedure
     private pathedRoutes: Record<string, Partial<Record<Method, Procedure<BaseParams> | TypedProcedure<BaseParams>>>> =
         {};
     private paths: string[] = [];
@@ -37,7 +38,7 @@ export class Router<$Router extends RouterObject> {
             endpoints: endpoints,
         }));
 
-        while (keys.length != 0) {
+        while (keys.length !== 0) {
             const key = keys.pop()!;
             const value = key.endpoints[key.id];
 
@@ -54,9 +55,9 @@ export class Router<$Router extends RouterObject> {
 
                 const baseRecord: Partial<Record<Method, Procedure<BaseParams> | TypedProcedure<BaseParams>>> = {};
 
-                //separate procedures and subroutes
+                // separate procedures and subroutes
                 const procedures: (Procedure<BaseParams> | TypedProcedure<BaseParams>)[] = [];
-                //merge objects, last object keys are in priority
+                // merge objects, last object keys are in priority
                 let subRouter: RouterObject = {};
 
                 for (const item of value) {
@@ -73,7 +74,7 @@ export class Router<$Router extends RouterObject> {
 
                 this.pathedRoutes[key.path] = baseRecord;
 
-                //subkeys of router
+                // subkeys of router
 
                 const subKeys = Object.keys(subRouter).map((subKey) => ({
                     id: subKey,
@@ -102,11 +103,7 @@ export class Router<$Router extends RouterObject> {
      * @returns If path is included in this router
      */
     public includes(path: string) {
-        if (this.paths.includes(path)) {
-            return true;
-        }
-
-        return false;
+        return this.paths.includes(path);
     }
 
     /**

@@ -1,8 +1,8 @@
-import prettier from 'eslint-config-prettier';
-import js from '@eslint/js';
 import { includeIgnoreFile } from '@eslint/compat';
-import { fileURLToPath } from 'node:url';
+import js from '@eslint/js';
+import prettier from 'eslint-config-prettier';
 import { dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import ts from 'typescript-eslint';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -15,7 +15,20 @@ export default ts.config(
     prettier,
     {
         rules: {
-            'no-console': 'error',
+            'no-console': ['error', { allow: ['warn', 'error'] }],
+            '@typescript-eslint/no-explicit-any': 'off', //Since its library, we often use `any` type
+            '@typescript-eslint/no-unused-vars': [
+                'error',
+                {
+                    args: 'all',
+                    argsIgnorePattern: '^_',
+                    caughtErrors: 'all',
+                    caughtErrorsIgnorePattern: '^_',
+                    destructuredArrayIgnorePattern: '^_',
+                    varsIgnorePattern: '^_',
+                    ignoreRestSiblings: true,
+                },
+            ],
         },
     },
 );

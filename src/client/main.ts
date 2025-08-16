@@ -1,7 +1,6 @@
 import type { Router, RouterObject } from '../router.js';
-import { Params, Procedure, TypedProcedure } from '../server/procedure.js';
+import { Procedure, TypedProcedure } from '../server/procedure.js';
 import type {
-    Any,
     DistributeMethods,
     DistributeNonMethods,
     ExtractMethod,
@@ -21,24 +20,13 @@ type FetchFunction<$InputType, $ReturnType> = $InputType extends 'NOTHING'
     ? () => Promise<$ReturnType>
     : (data: $InputType) => Promise<$ReturnType>;
 
-/**
- * Extract DataType and Return Type from procedure, if procedure's method and Method doesn't match, it returns never, otherwise it get's Function with DataType and ReturnType
- * @param $Procedure Single procedure, or union of procedures
- * @param $Method Method, which selects correct one from union
- */
-type DistributeFunctions<$Procedure, $Method> = $Procedure extends Any
-    ? ExtractMethod<$Procedure> extends $Method
-    ? FetchFunction<ExtractType<$Procedure>, ExtractReturnType<$Procedure>>
-    : never
-    : never;
-
-type DistributeProcedureFunctions<$Procedure, $HttpMethod> = $Procedure extends Any
+type DistributeProcedureFunctions<$Procedure, $HttpMethod> = $Procedure extends any
     ? ExtractMethod<$Procedure> extends $HttpMethod
-    ? FetchFunction<ExtractType<$Procedure>, ExtractReturnType<$Procedure>>
-    : never
+        ? FetchFunction<ExtractType<$Procedure>, ExtractReturnType<$Procedure>>
+        : never
     : never;
 
-type ResolveProcedureArray<$ProcedureArray extends Any[]> = {
+type ResolveProcedureArray<$ProcedureArray extends any[]> = {
     [HttpMethod in DistributeMethods<$ProcedureArray[number]>]: DistributeProcedureFunctions<
         $ProcedureArray[number],
         HttpMethod
@@ -54,16 +42,12 @@ type ResolveProcedureArray<$ProcedureArray extends Any[]> = {
  */
 type FinalObjectBuilder<$RouterEndpoints> = $RouterEndpoints extends object
     ? {
-        [RouteKey in keyof $RouterEndpoints]: $RouterEndpoints[RouteKey] extends Procedure<
-            Params<Any, Any, Any, infer $OutputType>
-        >
-        ? FetchFunction<'NOTHING', $OutputType>
-        : $RouterEndpoints[RouteKey] extends TypedProcedure<Params<infer $InputType, Any, Any, infer $OutputType>>
-        ? FetchFunction<$InputType, $OutputType>
-        : $RouterEndpoints[RouteKey] extends Array<Any>
-        ? ResolveProcedureArray<$RouterEndpoints[RouteKey]>
-        : FinalObjectBuilder<$RouterEndpoints[RouteKey]>;
-    }
+          [RouteKey in keyof $RouterEndpoints]: $RouterEndpoints[RouteKey] extends Procedure<any> | TypedProcedure<any>
+              ? FetchFunction<ExtractType<$RouterEndpoints[RouteKey]>, ExtractReturnType<$RouterEndpoints[RouteKey]>>
+              : $RouterEndpoints[RouteKey] extends any[]
+                ? ResolveProcedureArray<$RouterEndpoints[RouteKey]>
+                : FinalObjectBuilder<$RouterEndpoints[RouteKey]>;
+      }
     : never;
 
 /**
@@ -82,17 +66,21 @@ type APIClient<$Router extends Router<RouterObject>> = {
  * @returns Fetch function with data param
  */
 const fetchFunction = (path: string, method: string) => {
-    return async (data?: Any) => {
+    return async (data?: unknown) => {
+        let body: BodyInit | undefined;
+        if (data !== undefined) {
+            if (data instanceof FormData) {
+                body = data;
+            } else if (typeof data === 'object') {
+                body = JSON.stringify(data);
+            } else {
+                body = data as unknown as BodyInit;
+            }
+        }
+
         const request = await fetch(path, {
             method,
-            body:
-                data !== undefined
-                    ? data instanceof FormData
-                        ? data
-                        : typeof data === 'object'
-                            ? JSON.stringify(data)
-                            : data
-                    : undefined,
+            body,
         });
 
         const text = await request.text();
@@ -101,7 +89,7 @@ const fetchFunction = (path: string, method: string) => {
             const json = JSON.parse(text);
 
             return json;
-        } catch (_) {
+        } catch (_err) {
             return text;
         }
     };
@@ -115,12 +103,13 @@ const fetchFunction = (path: string, method: string) => {
 export const createAPIClient = <R extends Router<RouterObject>>(basePath: string) => {
     return {
         basePath,
-        hydrateFromServer: function(data: HydrateData<R>) {
+        hydrateFromServer: function (data: HydrateData<R>) {
             const toDo: {
                 fullPath: string;
                 key: string;
-                parent: Any;
-                obj: Any;
+                // using any here is intentional: we mutate a dynamic tree to attach functions
+                parent: any;
+                obj: any;
             }[] = Object.keys(data).map((key) => {
                 return {
                     fullPath: '/' + key,
@@ -130,27 +119,27 @@ export const createAPIClient = <R extends Router<RouterObject>>(basePath: string
                 };
             });
 
-            while (toDo.length != 0) {
+            while (toDo.length !== 0) {
                 const top = toDo.pop()!;
-                const data = top.obj[top.key];
+                const node = top.obj[top.key];
 
-                if (typeof data === 'string') {
-                    top.parent[top.key] = fetchFunction(this.basePath + top.fullPath, data);
+                if (typeof node === 'string') {
+                    top.parent[top.key] = fetchFunction(this.basePath + top.fullPath, node);
 
                     continue;
                 }
 
-                if (Array.isArray(data)) {
+                if (Array.isArray(node)) {
                     if (!(top.key in top.parent)) {
                         top.parent[top.key] = {};
                     }
 
                     const procedures: string[] = [];
-                    let subRoute = {};
+                    let subRoute: Record<string, unknown> = {};
 
-                    for (const item of data) {
+                    for (const item of node) {
                         if (typeof item === 'object') {
-                            subRoute = item;
+                            subRoute = item as Record<string, unknown>;
                         } else {
                             procedures.push(item);
                         }
@@ -176,12 +165,12 @@ export const createAPIClient = <R extends Router<RouterObject>>(basePath: string
                 top.parent[top.key] = {};
 
                 toDo.push(
-                    ...Object.keys(data).map((key) => {
+                    ...Object.keys(node as Record<string, unknown>).map((key) => {
                         return {
                             fullPath: top.fullPath + '/' + key,
                             key,
                             parent: top.parent[top.key],
-                            obj: data,
+                            obj: node,
                         };
                     }),
                 );

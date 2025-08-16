@@ -2,7 +2,6 @@ import { json, type RequestEvent } from '@sveltejs/kit';
 import { z } from 'zod';
 import { Router, type RouterObject } from '../router.js';
 import type {
-    Any,
     CreateContext,
     DistributeMethods,
     DistributeNonMethods,
@@ -31,9 +30,28 @@ import {
 /**
  * Zod custom type, that checks, if input is FormData
  */
-export const FormDataInput = z.custom<FormData>((data) => {
-    return data instanceof FormData;
-});
+export const AnyFormDataInput = z.custom<FormData>((data) => data instanceof FormData);
+
+/**
+ * Back-compat alias: permissive FormData validator (no schema)
+ * @deprecated Use AnyFormDataInput or createFormDataInput(schema)
+ */
+export const FormDataInput = AnyFormDataInput;
+
+/**
+ * Zod custom type factory: validates FormData by provided schema
+ */
+export const createFormDataInput = <$Data>(schema: z.ZodType<$Data>) =>
+    z.custom<FormData>((data) => {
+        if (!(data instanceof FormData)) return false;
+        const object = Object.fromEntries(data.entries());
+        const parsed = schema.safeParse(object);
+        if (!parsed.success) {
+            console.error('FormDataInput validation failed:', parsed.error);
+            return false;
+        }
+        return true;
+    });
 
 /**
  * @internal
@@ -52,7 +70,7 @@ export class APICreate<$Context> {
     }
 
     get procedure() {
-        return new BaseProcedure<Params<unknown, $Context, Any, Any>>();
+        return new BaseProcedure<Params<unknown, $Context, any, any>>();
     }
 }
 
@@ -70,20 +88,20 @@ type FetchFunction<$DataType, $ReturnType> = $DataType extends 'NOTHING'
  * @param $Procedure Single procedure, or union of procedures
  * @param $Method Method, which selects correct one from union
  */
-type DistributeFunctions<$Procedure, $Method> = $Procedure extends Any
+type DistributeFunctions<$Procedure, $Method> = $Procedure extends any
     ? ExtractMethod<$Procedure> extends $Method
-    ? FetchFunction<ExtractType<$Procedure>, ExtractReturnType<$Procedure>>
-    : never
+        ? FetchFunction<ExtractType<$Procedure>, ExtractReturnType<$Procedure>>
+        : never
     : never;
 
 type ResolveSingleProcedure<$Procedure> =
-    $Procedure extends Procedure<Params<Any, Any, Any, infer $Output>>
-    ? FetchFunction<'NOTHING', $Output>
-    : $Procedure extends TypedProcedure<Params<infer $Input, Any, Any, infer $Output>>
-    ? FetchFunction<$Input, $Output>
-    : never;
+    $Procedure extends Procedure<Params<any, any, any, infer $Output>>
+        ? FetchFunction<'NOTHING', $Output>
+        : $Procedure extends TypedProcedure<Params<infer $Input, any, any, infer $Output>>
+          ? FetchFunction<$Input, $Output>
+          : never;
 
-type ResolveProcedureArray<$ProcedureArray extends Any[]> = {
+type ResolveProcedureArray<$ProcedureArray extends any[]> = {
     [MethodKey in DistributeMethods<$ProcedureArray[number]>]: DistributeFunctions<$ProcedureArray[number], MethodKey>;
 } & TransformNever<
     FinalObjectBuilder<NonMethods<DistributeNonMethods<$ProcedureArray[number]>>>,
@@ -96,12 +114,12 @@ type ResolveProcedureArray<$ProcedureArray extends Any[]> = {
  */
 type FinalObjectBuilder<$RouterEndpoints> = $RouterEndpoints extends object
     ? {
-        [Key in keyof $RouterEndpoints]: $RouterEndpoints[Key] extends Procedure<any> | TypedProcedure<any>
-        ? ResolveSingleProcedure<$RouterEndpoints[Key]>
-        : $RouterEndpoints[Key] extends Any[]
-        ? ResolveProcedureArray<$RouterEndpoints[Key]>
-        : FinalObjectBuilder<$RouterEndpoints[Key]>;
-    }
+          [Key in keyof $RouterEndpoints]: $RouterEndpoints[Key] extends Procedure<any> | TypedProcedure<any>
+              ? ResolveSingleProcedure<$RouterEndpoints[Key]>
+              : $RouterEndpoints[Key] extends any[]
+                ? ResolveProcedureArray<$RouterEndpoints[Key]>
+                : FinalObjectBuilder<$RouterEndpoints[Key]>;
+      }
     : never;
 
 type FormActionWrapper<T> = T extends (event: RequestEvent, data: any) => Promise<infer R>
@@ -110,10 +128,10 @@ type FormActionWrapper<T> = T extends (event: RequestEvent, data: any) => Promis
 
 type CreateActionsFromSSR<T> = {
     [K in keyof T]: T[K] extends (event: RequestEvent, data: any) => Promise<any>
-    ? FormActionWrapper<T[K]>
-    : T[K] extends object
-    ? CreateActionsFromSSR<T[K]>
-    : never;
+        ? FormActionWrapper<T[K]>
+        : T[K] extends object
+          ? CreateActionsFromSSR<T[K]>
+          : never;
 };
 
 /**
@@ -147,7 +165,7 @@ export class APIServer<$Router extends Router<RouterObject>> {
      * @param method Method
      * @returns Output of mainHandler
      */
-    private async handleSSR(event: RequestEvent, data: Any, apiPath: string, method: Method) {
+    private async handleSSR(event: RequestEvent, data: unknown, apiPath: string, method: Method) {
         if (!this.router.includes(apiPath)) {
             return {
                 status: false,
@@ -188,13 +206,13 @@ export class APIServer<$Router extends Router<RouterObject>> {
 
         if (procedure instanceof TypedProcedure) {
             try {
-                if (procedure.inputSchema == FormDataInput) {
+                if (procedure.inputSchema === AnyFormDataInput) {
                     input = data;
                 } else {
                     const parsed = procedure.inputSchema.safeParse(data);
 
                     if (!parsed.success) {
-                        const messages = parsed.error.errors.map((error) => error.message);
+                        const messages = parsed.error.issues.map((issue) => issue.message);
 
                         return {
                             status: false,
@@ -224,7 +242,7 @@ export class APIServer<$Router extends Router<RouterObject>> {
     private generateSSR() {
         const endpoints = this.router.endpoints;
 
-        const newObj = {} as Any;
+        const newObj = {} as any;
 
         const toDone: {
             key: string;
@@ -241,12 +259,12 @@ export class APIServer<$Router extends Router<RouterObject>> {
         });
 
         const createWrapper = (method: Method, path: string) => {
-            return (event: RequestEvent, data: Any) => {
+            return (event: RequestEvent, data: unknown) => {
                 return this.handleSSR(event, data, path, method);
             };
         };
 
-        while (toDone.length != 0) {
+        while (toDone.length !== 0) {
             const top = toDone.pop()!;
             const data = top.obj[top.key];
 
@@ -258,9 +276,9 @@ export class APIServer<$Router extends Router<RouterObject>> {
             if (Array.isArray(data)) {
                 top.parent[top.key] = {};
 
-                //separate procedures and subroutes
+                // separate procedures and subroutes
                 const procedures: (Procedure<BaseParams> | TypedProcedure<BaseParams>)[] = [];
-                //merge objects, last object keys are in priority
+                // merge objects, last object keys are in priority
                 let subRouter: RouterObject = {};
 
                 for (const item of data) {
@@ -275,7 +293,7 @@ export class APIServer<$Router extends Router<RouterObject>> {
                     top.parent[top.key][procedure.method] = createWrapper(procedure.method, top.fullPath);
                 });
 
-                //add subroutes
+                // add subroutes
 
                 toDone.push(
                     ...Object.keys(subRouter).map((key) => {
@@ -312,15 +330,15 @@ export class APIServer<$Router extends Router<RouterObject>> {
      * MainHandler that handles all requests of API and SSR
      * @param ev SvelteKit's RequestEvent
      * @param procedure Procedure
-     * @param method Method of Request
+     * @param _method Method of Request
      * @param input Input Data
      * @returns Response of API
      */
     private async mainHandler(
         ev: RequestEvent,
-        procedure: Procedure<Any> | TypedProcedure<Any>,
-        method: Method,
-        input: Any,
+        procedure: Procedure<any> | TypedProcedure<any>,
+        _method: Method,
+        input: any,
     ) {
         let ctx = await this.createContext(ev);
 
@@ -328,7 +346,7 @@ export class APIServer<$Router extends Router<RouterObject>> {
 
         for (const middleware of procedure.middlewares) {
             try {
-                const result = await Promise.resolve<Params<typeof input, typeof ctx, typeof method, Any>>(
+                const result = await Promise.resolve<Params<typeof input, typeof ctx, typeof _method, any>>(
                     middleware({
                         ctx,
                         input,
@@ -341,8 +359,8 @@ export class APIServer<$Router extends Router<RouterObject>> {
                                 } as Params<
                                     typeof input extends undefined ? unknown : typeof input,
                                     Context,
-                                    typeof method,
-                                    Any
+                                    typeof _method,
+                                    any
                                 >;
                             }
 
@@ -350,7 +368,7 @@ export class APIServer<$Router extends Router<RouterObject>> {
                                 schema: procedure instanceof Procedure ? z.unknown() : procedure.inputSchema,
                                 ctx,
                                 input,
-                            } as Params<unknown, Context, typeof method, Any>;
+                            } as Params<unknown, Context, typeof _method, any>;
                         },
                         ev,
                     }),
@@ -379,7 +397,7 @@ export class APIServer<$Router extends Router<RouterObject>> {
                 procedure.callback({
                     ctx,
                     ev,
-                } as CallBackInputWithoutInput<Any>),
+                } as CallBackInputWithoutInput<any>),
             );
         } else {
             result = await Promise.resolve(
@@ -387,7 +405,7 @@ export class APIServer<$Router extends Router<RouterObject>> {
                     ctx,
                     input,
                     ev,
-                } as CallBackInput<Any>),
+                } as CallBackInput<any>),
             );
         }
 
@@ -458,33 +476,25 @@ export class APIServer<$Router extends Router<RouterObject>> {
             } satisfies ErrorApiResponse);
         }
 
-        if (method !== 'GET' && procedure instanceof Procedure) {
-            return json({
-                status: false,
-                code: 403,
-                message: 'Method not supported',
-            } satisfies ErrorApiResponse);
-        }
-
         let input: ExtractParams<typeof procedure>['input'] | undefined = undefined;
 
         if (procedure instanceof TypedProcedure) {
             try {
-                if (procedure.inputSchema == FormDataInput) {
+                if (procedure.inputSchema === AnyFormDataInput) {
                     input = await request.formData();
                 } else {
                     let data: string | object = await request.text();
 
                     try {
                         data = JSON.parse(data);
-                    } catch (_) {
+                    } catch (_err) {
                         /* empty */
                     }
 
                     const parsed = procedure.inputSchema.safeParse(data);
 
                     if (!parsed.success) {
-                        const messages = parsed.error.errors.map((error) => error.message);
+                        const messages = parsed.error.issues.map((issue) => issue.message);
 
                         return json({
                             status: false,
@@ -563,7 +573,7 @@ export class APIServer<$Router extends Router<RouterObject>> {
             };
         });
 
-        while (toDone.length != 0) {
+        while (toDone.length !== 0) {
             const top = toDone.pop()!;
             const data = top.obj[top.key];
 
@@ -573,9 +583,9 @@ export class APIServer<$Router extends Router<RouterObject>> {
             }
 
             if (Array.isArray(data)) {
-                //separate procedures and subroutes
+                // separate procedures and subroutes
                 const procedures: (Procedure<BaseParams> | TypedProcedure<BaseParams>)[] = [];
-                //merge objects, last object keys are in priority
+                // merge objects, last object keys are in priority
                 let subRouter: RouterObject = {};
                 let subRouterSet = false;
 
@@ -591,7 +601,7 @@ export class APIServer<$Router extends Router<RouterObject>> {
                     }
                 }
 
-                let methodArray = [] as (HydrateDataBuilder | Method)[];
+                let methodArray: (HydrateDataBuilder | Method)[] = [];
 
                 if (Object.keys(subRouter).length > 0) {
                     const object = {} as HydrateDataBuilder;
@@ -631,8 +641,8 @@ export class APIServer<$Router extends Router<RouterObject>> {
         return newObj as HydrateData<$Router>;
     }
 
-    private createActions(ssrObject: Any) {
-        const result: Any = {};
+    private createActions(ssrObject: any) {
+        const result: any = {};
         for (const key in ssrObject) {
             const value = ssrObject[key];
             if (typeof value === 'function') {

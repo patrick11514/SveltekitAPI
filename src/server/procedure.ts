@@ -1,6 +1,6 @@
 import { RequestEvent } from '@sveltejs/kit';
 import type { z } from 'zod';
-import type { Any, Awaitable, ErrorApiResponse, IsAny } from '../types.js';
+import type { Awaitable, ErrorApiResponse, Isany } from '../types.js';
 
 /**
  * @internal
@@ -40,7 +40,7 @@ export type MergeOutputParams<$BaseParams extends BaseParams, $NewOutput> = {
     method: $BaseParams['method'];
     schema: $BaseParams['schema'];
     input: $BaseParams['input'];
-    output: IsAny<$BaseParams['output']> extends true ? $NewOutput : $NewOutput | $BaseParams['output'];
+    output: Isany<$BaseParams['output']> extends true ? $NewOutput : $NewOutput | $BaseParams['output'];
     ctx: $BaseParams['ctx'];
     ev: RequestEvent;
 };
@@ -80,7 +80,7 @@ export class BaseProcedure<$Params extends BaseParams> {
     /**
      * List of middlewares of that procedure
      */
-    public middlewares: MiddleWareFunction<$Params, Any>[] = [];
+    public middlewares: MiddleWareFunction<$Params, any>[] = [];
 
     /**
      * Clone middlewares to new Procedure
@@ -88,7 +88,7 @@ export class BaseProcedure<$Params extends BaseParams> {
      */
     private clone<$NewParams extends BaseParams>() {
         const clone = new BaseProcedure<$NewParams>();
-        clone.middlewares = [...this.middlewares] as Any[];
+        clone.middlewares = [...this.middlewares] as any[];
         return clone;
     }
 
@@ -101,7 +101,7 @@ export class BaseProcedure<$Params extends BaseParams> {
         middleware: MiddleWareFunction<$Params, $OutputParams>,
     ): BaseProcedure<$OutputParams> {
         const clone = this.clone<$OutputParams>();
-        clone.middlewares.push(middleware as Any);
+        clone.middlewares.push(middleware as any);
         return clone;
     }
 
@@ -112,7 +112,7 @@ export class BaseProcedure<$Params extends BaseParams> {
     get GET() {
         return new Procedure<MergeParams<$Params, 'GET'>>(
             'GET',
-            this.middlewares as MiddleWareFunction<MergeParams<$Params, 'GET'>, Any>[],
+            this.middlewares as MiddleWareFunction<MergeParams<$Params, 'GET'>, any>[],
         );
     }
 
@@ -123,7 +123,7 @@ export class BaseProcedure<$Params extends BaseParams> {
     get POST() {
         return new Procedure<MergeParams<$Params, 'POST'>>(
             'POST',
-            this.middlewares as MiddleWareFunction<MergeParams<$Params, 'POST'>, Any>[],
+            this.middlewares as MiddleWareFunction<MergeParams<$Params, 'POST'>, any>[],
         );
     }
 
@@ -134,7 +134,7 @@ export class BaseProcedure<$Params extends BaseParams> {
     get PUT() {
         return new Procedure<MergeParams<$Params, 'PUT'>>(
             'PUT',
-            this.middlewares as MiddleWareFunction<MergeParams<$Params, 'PUT'>, Any>[],
+            this.middlewares as MiddleWareFunction<MergeParams<$Params, 'PUT'>, any>[],
         );
     }
 
@@ -145,7 +145,7 @@ export class BaseProcedure<$Params extends BaseParams> {
     get DELETE() {
         return new Procedure<MergeParams<$Params, 'DELETE'>>(
             'DELETE',
-            this.middlewares as MiddleWareFunction<MergeParams<$Params, 'DELETE'>, Any>[],
+            this.middlewares as MiddleWareFunction<MergeParams<$Params, 'DELETE'>, any>[],
         );
     }
 
@@ -156,7 +156,7 @@ export class BaseProcedure<$Params extends BaseParams> {
     get PATCH() {
         return new Procedure<MergeParams<$Params, 'PATCH'>>(
             'PATCH',
-            this.middlewares as MiddleWareFunction<MergeParams<$Params, 'PATCH'>, Any>[],
+            this.middlewares as MiddleWareFunction<MergeParams<$Params, 'PATCH'>, any>[],
         );
     }
 }
@@ -174,10 +174,10 @@ export type Method = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
  */
 export type ExtractParams<$Procedure extends Procedure<BaseParams> | TypedProcedure<BaseParams>> =
     $Procedure extends Procedure<infer $Params>
-    ? $Params
-    : $Procedure extends TypedProcedure<infer $Params>
-    ? $Params
-    : never;
+        ? $Params
+        : $Procedure extends TypedProcedure<infer $Params>
+          ? $Params
+          : never;
 
 /**
  * @internal
@@ -216,14 +216,14 @@ export type CallBackFunctionWithoutInput<$Params extends BaseParams, $Output> = 
 export class Procedure<$Params extends BaseParams> {
     public method: Method;
     public callback!: CallBackFunctionWithoutInput<$Params, $Params['output']>;
-    public middlewares: MiddleWareFunction<$Params, Any>[] = [];
+    public middlewares: MiddleWareFunction<$Params, any>[] = [];
 
     /**
      * Constructor
      * @param method Method of this Procedure
      * @param appliedMiddlewares Middlewares of that procedure
      */
-    constructor(method: Method, appliedMiddlewares: MiddleWareFunction<$Params, Any>[]) {
+    constructor(method: Method, appliedMiddlewares: MiddleWareFunction<$Params, any>[]) {
         this.method = method;
         this.middlewares = appliedMiddlewares;
     }
@@ -240,7 +240,7 @@ export class Procedure<$Params extends BaseParams> {
         }
         return new TypedProcedure<Params<$Input, $Params['ctx'], $Params['method'], $Params['output']>>(
             this.method,
-            this.middlewares as Any,
+            this.middlewares as any,
             schema,
         );
     }
@@ -263,7 +263,7 @@ export class TypedProcedure<$Params extends BaseParams> {
     public inputSchema!: $Params['schema'];
     public method: Method;
     public callback!: CallBackFunction<$Params, $Params['output']>;
-    public middlewares: MiddleWareFunction<$Params, Any>[] = [];
+    public middlewares: MiddleWareFunction<$Params, any>[] = [];
 
     /**
      * Constructor
@@ -271,7 +271,7 @@ export class TypedProcedure<$Params extends BaseParams> {
      * @param appliedMiddlewares Middlewares of procedure
      * @param schema Schema of input
      */
-    constructor(method: Method, appliedMiddlewares: MiddleWareFunction<$Params, Any>[], schema: $Params['schema']) {
+    constructor(method: Method, appliedMiddlewares: MiddleWareFunction<$Params, any>[], schema: $Params['schema']) {
         this.method = method;
         this.middlewares = appliedMiddlewares;
         this.inputSchema = schema;
