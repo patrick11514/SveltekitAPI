@@ -39,12 +39,12 @@
     },
     "repository": {
         "type": "git",
-        "url": "git+ssh://git@github.com/patrick11514/SveltekitAPIHandler.git"
+        "url": "https://github.com/patrick11514/SveltekitAPI.git"
     },
     "bugs": {
-        "url": "https://github.com/patrick11514/SveltekitAPIHandler/issues"
+        "url": "https://github.com/patrick11514/SveltekitAPI/issues"
     },
-    "homepage": "https://github.com/patrick11514/SveltekitAPIHandler#readme",
+    "homepage": "https://github.com/patrick11514/SveltekitAPI#readme",
     "lint-staged": {
         "*.ts": [
             "eslint --fix",
