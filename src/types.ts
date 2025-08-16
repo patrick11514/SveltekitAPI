@@ -17,7 +17,7 @@ export type Awaitable<T> = T | Promise<T>;
 /**
  * Extracts Return type from Function
  */
-export type AsyncReturnType<$Function extends (...args: unknown[]) => unknown> =
+export type AsyncReturnType<$Function extends (...args: any[]) => any> =
     ReturnType<$Function> extends Promise<infer $ReturnType> ? $ReturnType : ReturnType<$Function>;
 
 /**
