@@ -1,6 +1,6 @@
+import { AnyFormDataInput } from '@patrick115/sveltekitapi';
 import { z } from 'zod';
 import { procedure, protectedProcedure, router } from './api';
-import { FormDataInput } from '@patrick115/sveltekitapi';
 
 export const r = router({
     testGET: procedure.GET.query(async () => {
@@ -13,7 +13,7 @@ export const r = router({
         procedure.GET.query(async () => 'GET'),
         procedure.POST.input(z.string()).query(async ({ input }) => input),
     ],
-    formData: procedure.PUT.input(FormDataInput).query(({ input }) => {
+    formData: procedure.PUT.input(AnyFormDataInput).query(({ input }) => {
         const resultObject: Record<string, unknown> = {};
 
         for (const [key, value] of input.entries()) {
@@ -31,7 +31,7 @@ export const r = router({
             aa: procedure.GET.query(() => 'test2'),
         },
     ],
-    form: procedure.POST.input(FormDataInput).query(({ input }) => {
+    form: procedure.POST.input(AnyFormDataInput).query(({ input }) => {
         const username = input.get('username');
         const password = input.get('password');
 
